@@ -1,22 +1,32 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const db = require('./db');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+async function start() {
+  await db.init();
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+  const app = express();
+  const PORT = process.env.PORT || 3000;
 
-app.use('/api/groups', require('./routes/groups'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/expenses', require('./routes/expenses'));
+  app.use(cors());
+  app.use(express.json());
+  app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+  app.use('/api/groups', require('./routes/groups'));
+  app.use('/api/users', require('./routes/users'));
+  app.use('/api/expenses', require('./routes/expenses'));
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`CatPawl running on http://0.0.0.0:${PORT}`);
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`CatPawl running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+start().catch(err => {
+  console.error('[startup] fatal:', err);
+  process.exit(1);
 });

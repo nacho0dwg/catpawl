@@ -1,84 +1,128 @@
-const { DatabaseSync } = require('node:sqlite');
+'use strict';
+const initSqlJs = require('sql.js');
+const fs = require('fs');
+const path = require('path');
 
-const db = new DatabaseSync('catpawl.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'catpawl.db');
 
-db.exec(`PRAGMA journal_mode = WAL`);
-db.exec(`PRAGMA foreign_keys = ON`);
+let _db = null;
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS groups (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    code TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+function save() {
+  if (!_db) return;
+  try {
+    fs.writeFileSync(DB_PATH, Buffer.from(_db.export()));
+  } catch (e) {
+    console.error('[db] save error:', e.message);
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    group_id TEXT NOT NULL,
-    nickname TEXT NOT NULL,
-    alias TEXT,
-    avatar_url TEXT,
-    cat_color TEXT NOT NULL DEFAULT 'orange',
-    cat_accessory TEXT,
-    hat TEXT,
-    credits INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (group_id) REFERENCES groups(id)
-  );
+// Shim: same .prepare().get/all/run API as better-sqlite3 / node:sqlite.
+// Each .get/.all/.run creates a fresh sql.js statement (correct for reuse in loops).
+const db = {
+  async init() {
+    const SQL = await initSqlJs();
 
-  CREATE TABLE IF NOT EXISTS expenses (
-    id TEXT PRIMARY KEY,
-    group_id TEXT NOT NULL,
-    payer_id TEXT NOT NULL,
-    amount REAL NOT NULL,
-    concept TEXT NOT NULL,
-    category TEXT NOT NULL DEFAULT 'otro',
-    expense_date TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (group_id) REFERENCES groups(id),
-    FOREIGN KEY (payer_id) REFERENCES users(id)
-  );
+    _db = fs.existsSync(DB_PATH)
+      ? new SQL.Database(new Uint8Array(fs.readFileSync(DB_PATH)))
+      : new SQL.Database();
 
-  CREATE TABLE IF NOT EXISTS expense_members (
-    expense_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    PRIMARY KEY (expense_id, user_id),
-    FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
+    _db.run('PRAGMA foreign_keys = ON');
 
-  CREATE TABLE IF NOT EXISTS payments (
-    id TEXT PRIMARY KEY,
-    from_user TEXT NOT NULL,
-    to_user TEXT NOT NULL,
-    amount REAL NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (from_user) REFERENCES users(id),
-    FOREIGN KEY (to_user) REFERENCES users(id)
-  );
-`);
+    _db.exec(`
+      CREATE TABLE IF NOT EXISTS groups (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        code TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
 
-// Thin compatibility shim so routes can use the same .prepare().get/all/run API
-// that better-sqlite3 provides — node:sqlite uses a slightly different interface.
-const origPrepare = db.prepare.bind(db);
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        group_id TEXT NOT NULL,
+        nickname TEXT NOT NULL,
+        alias TEXT,
+        avatar_url TEXT,
+        cat_color TEXT NOT NULL DEFAULT 'orange',
+        cat_accessory TEXT,
+        hat TEXT,
+        credits INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (group_id) REFERENCES groups(id)
+      );
 
-db.prepare = function (sql) {
-  const stmt = origPrepare(sql);
-  return {
-    get(...params) {
-      // node:sqlite returns undefined when no row; better-sqlite3 does too
-      const rows = stmt.all(...params);
-      return rows[0];
-    },
-    all(...params) {
-      return stmt.all(...params);
-    },
-    run(...params) {
-      return stmt.run(...params);
-    }
-  };
+      CREATE TABLE IF NOT EXISTS expenses (
+        id TEXT PRIMARY KEY,
+        group_id TEXT NOT NULL,
+        payer_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        concept TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'otro',
+        expense_date TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (group_id) REFERENCES groups(id),
+        FOREIGN KEY (payer_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS expense_members (
+        expense_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        PRIMARY KEY (expense_id, user_id),
+        FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        from_user TEXT NOT NULL,
+        to_user TEXT NOT NULL,
+        amount REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (from_user) REFERENCES users(id),
+        FOREIGN KEY (to_user) REFERENCES users(id)
+      );
+    `);
+
+    save(); // persist initial schema if DB was just created
+    console.log('[db] ready —', DB_PATH);
+  },
+
+  prepare(sql) {
+    return {
+      get(...args) {
+        const stmt = _db.prepare(sql);
+        try {
+          if (args.length) stmt.bind(args);
+          return stmt.step() ? stmt.getAsObject() : undefined;
+        } finally {
+          stmt.free();
+        }
+      },
+
+      all(...args) {
+        const stmt = _db.prepare(sql);
+        const rows = [];
+        try {
+          if (args.length) stmt.bind(args);
+          while (stmt.step()) rows.push(stmt.getAsObject());
+        } finally {
+          stmt.free();
+        }
+        return rows;
+      },
+
+      run(...args) {
+        const stmt = _db.prepare(sql);
+        try {
+          if (args.length) stmt.bind(args);
+          stmt.step();
+        } finally {
+          stmt.free();
+        }
+        save();
+      },
+    };
+  },
 };
 
 module.exports = db;
