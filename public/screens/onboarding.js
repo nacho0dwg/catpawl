@@ -1,0 +1,251 @@
+Router.register('onboarding', (screen) => {
+  Router.hideNav();
+
+  let step = 'home'; // home | create-group | join-group | setup-user
+  let pendingGroupId = null;
+  let pendingGroupName = null;
+  let selectedColor = 'orange';
+  let fromCreate = false;
+
+  function render() {
+    screen.innerHTML = '';
+    const views = {
+      home: renderHome,
+      'create-group': renderCreateGroup,
+      'join-group': renderJoinGroup,
+      'setup-user': renderSetupUser
+    };
+    (views[step] || renderHome)();
+  }
+
+  function renderHome() {
+    screen.innerHTML = `
+      <div class="onboarding-screen">
+        <div class="onboarding-hero">
+          <div id="hero-cat"></div>
+          <div class="logo-text">CatPawl</div>
+          <div class="logo-sub">Compartí gastos con tus amigos.<br>Tus gatitos llevan la cuenta.</div>
+        </div>
+        <div class="step-indicator">
+          <div class="step-dot active"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <button class="btn btn-accent" id="btn-create">Crear grupo</button>
+          <button class="btn btn-ghost" id="btn-join">Unirme con código</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('hero-cat').innerHTML = renderCatSprite({ color: 'orange', animation: 'on_hind_legs', size: 96 });
+    document.getElementById('hero-cat').style.animation = 'bounce 2s ease-in-out infinite';
+
+    document.getElementById('btn-create').addEventListener('click', () => { fromCreate = true; step = 'create-group'; render(); });
+    document.getElementById('btn-join').addEventListener('click', () => { fromCreate = false; step = 'join-group'; render(); });
+  }
+
+  function renderCreateGroup() {
+    screen.innerHTML = `
+      <div class="onboarding-screen">
+        <div style="padding-top:48px;flex:1;display:flex;flex-direction:column;gap:24px;">
+          <div>
+            <div style="font-size:24px;font-weight:800;margin-bottom:8px;">Crear grupo</div>
+            <div style="color:var(--text2);font-size:14px;">Elegí un nombre para el grupo de gastos.</div>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="group-name">Nombre del grupo</label>
+            <input class="input" id="group-name" type="text" placeholder="Ej: Viaje a Bariloche" maxlength="40" autocomplete="off" />
+          </div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-accent" id="btn-create-submit">Crear grupo</button>
+            <button class="btn btn-ghost" id="btn-back">Volver</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const nameInput = document.getElementById('group-name');
+    nameInput.focus();
+
+    document.getElementById('btn-back').addEventListener('click', () => { step = 'home'; render(); });
+    document.getElementById('btn-create-submit').addEventListener('click', async () => {
+      const name = nameInput.value.trim();
+      if (!name) { showToast('Ingresá un nombre para el grupo', 'error'); return; }
+
+      const btn = document.getElementById('btn-create-submit');
+      btn.disabled = true;
+      btn.textContent = 'Creando...';
+
+      try {
+        const group = await api('POST', '/groups', { name });
+        pendingGroupId = group.id;
+        pendingGroupName = group.name;
+        AppState.groupCode = group.code;
+
+        // Show code briefly before going to user setup
+        screen.innerHTML = `
+          <div class="onboarding-screen">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;">
+              <div style="font-size:40px;">🎉</div>
+              <div style="font-size:20px;font-weight:700;">¡Grupo creado!</div>
+              <div style="color:var(--text2);font-size:14px;">Compartí este código con tus amigos</div>
+              <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:20px 32px;">
+                <div style="font-size:36px;font-weight:800;letter-spacing:8px;color:var(--accent);">${group.code}</div>
+              </div>
+              <div style="color:var(--text2);font-size:12px;">El código no tiene límite de tiempo</div>
+            </div>
+            <button class="btn btn-accent" id="btn-continue">Continuar</button>
+          </div>
+        `;
+
+        document.getElementById('btn-continue').addEventListener('click', () => { step = 'setup-user'; render(); });
+      } catch (e) {
+        showToast(e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Crear grupo';
+      }
+    });
+  }
+
+  function renderJoinGroup() {
+    screen.innerHTML = `
+      <div class="onboarding-screen">
+        <div style="padding-top:48px;flex:1;display:flex;flex-direction:column;gap:24px;">
+          <div>
+            <div style="font-size:24px;font-weight:800;margin-bottom:8px;">Unirse al grupo</div>
+            <div style="color:var(--text2);font-size:14px;">Ingresá el código que te compartieron.</div>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="group-code">Código de 6 letras</label>
+            <input class="input" id="group-code" type="text" placeholder="Ej: ABC123" maxlength="6"
+              style="font-size:24px;font-weight:700;letter-spacing:6px;text-align:center;text-transform:uppercase;" autocomplete="off" />
+          </div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-accent" id="btn-join-submit">Buscar grupo</button>
+            <button class="btn btn-ghost" id="btn-back">Volver</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const codeInput = document.getElementById('group-code');
+    codeInput.focus();
+    codeInput.addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+
+    document.getElementById('btn-back').addEventListener('click', () => { step = 'home'; render(); });
+    document.getElementById('btn-join-submit').addEventListener('click', async () => {
+      const code = codeInput.value.trim().toUpperCase();
+      if (code.length !== 6) { showToast('El código tiene 6 caracteres', 'error'); return; }
+
+      const btn = document.getElementById('btn-join-submit');
+      btn.disabled = true;
+      btn.textContent = 'Buscando...';
+
+      try {
+        const group = await api('GET', `/groups/code/${code}`);
+        pendingGroupId = group.id;
+        pendingGroupName = group.name;
+        AppState.groupCode = group.code;
+        step = 'setup-user';
+        render();
+      } catch (e) {
+        showToast('Código inválido o grupo no encontrado', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Buscar grupo';
+      }
+    });
+  }
+
+  function renderSetupUser() {
+    const colors = getCatColors();
+
+    screen.innerHTML = `
+      <div class="onboarding-screen">
+        <div style="padding-top:40px;flex:1;display:flex;flex-direction:column;gap:24px;">
+          <div>
+            <div style="font-size:24px;font-weight:800;margin-bottom:8px;">Tu perfil</div>
+            <div style="color:var(--text2);font-size:14px;">¿Cómo querés que te vean tus amigos?</div>
+          </div>
+
+          <div style="display:flex;justify-content:center;padding:8px 0;" id="cat-preview-wrap">
+            <div id="cat-preview"></div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="nickname">Tu nombre</label>
+            <input class="input" id="nickname" type="text" placeholder="Ej: Nacho" maxlength="20" autocomplete="off" />
+          </div>
+
+          <div>
+            <div class="input-label" style="margin-bottom:10px;">Color de tu gato</div>
+            <div class="cat-color-grid">
+              ${colors.map(c => `
+                <button class="cat-color-btn ${c.key === selectedColor ? 'active' : ''}"
+                  data-color="${c.key}"
+                  title="${c.name}"
+                  style="border-color:${c.key === selectedColor ? c.hex : 'transparent'};">
+                  ${renderCatSprite({ color: c.key, animation: 'meow_sit', size: 32 })}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-accent" id="btn-enter">Entrar al grupo</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    function updatePreview() {
+      document.getElementById('cat-preview').innerHTML = renderCatSprite({ color: selectedColor, animation: 'wash_sit', size: 96 });
+    }
+    updatePreview();
+
+    document.querySelectorAll('.cat-color-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedColor = btn.dataset.color;
+        const hex = getCatSpriteVariants().find(v => v.key === selectedColor)?.hex || '#888';
+        document.querySelectorAll('.cat-color-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.color === selectedColor);
+          b.style.borderColor = b.dataset.color === selectedColor ? hex : 'transparent';
+        });
+        updatePreview();
+      });
+    });
+
+    document.getElementById('btn-enter').addEventListener('click', async () => {
+      const nickname = document.getElementById('nickname').value.trim();
+      if (!nickname) { showToast('Ingresá tu nombre', 'error'); return; }
+
+      const btn = document.getElementById('btn-enter');
+      btn.disabled = true;
+      btn.textContent = 'Entrando...';
+
+      try {
+        const user = await api('POST', '/users', {
+          group_id: pendingGroupId,
+          nickname,
+          cat_color: selectedColor
+        });
+
+        AppState.groupId = pendingGroupId;
+        AppState.userId = user.id;
+        AppState.groupName = pendingGroupName;
+        AppState.userName = nickname;
+        AppState.userColor = selectedColor;
+        saveToStorage();
+
+        Router.showNav();
+        Router.navigate('feed');
+      } catch (e) {
+        showToast(e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Entrar al grupo';
+      }
+    });
+  }
+
+  render();
+});

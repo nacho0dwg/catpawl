@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#0f1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>CatPawl</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="screen-container"></div>
+
+    <nav id="bottom-nav" class="hidden">
+      <button class="nav-item" data-route="feed" aria-label="Gastos">
+        <canvas class="nav-dot-icon"></canvas>
+      </button>
+      <button class="nav-item" data-route="add-expense" aria-label="Agregar gasto">
+        <canvas class="nav-dot-icon"></canvas>
+      </button>
+      <button class="nav-item" data-route="debts" aria-label="Deudas">
+        <canvas class="nav-dot-icon"></canvas>
+      </button>
+      <button class="nav-item" data-route="summary" aria-label="Resumen">
+        <canvas class="nav-dot-icon"></canvas>
+      </button>
+      <button class="nav-item" data-route="store" aria-label="Tienda">
+        <canvas class="nav-dot-icon"></canvas>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="/js/sprite.js"></script>
+  <script src="/js/nav-icons.js"></script>
+  <script src="/js/icons.js"></script>
+  <script src="/js/cats.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/router.js"></script>
+  <script src="/screens/onboarding.js"></script>
+  <script src="/screens/feed.js"></script>
+  <script src="/screens/add-expense.js"></script>
+  <script src="/screens/debts.js"></script>
+  <script src="/screens/summary.js"></script>
+  <script src="/screens/store.js"></script>
+</body>
+</html>

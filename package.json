@@ -1,0 +1,18 @@
+{
+  "name": "catpawl",
+  "version": "1.0.0",
+  "description": "Mobile-first expense sharing app with pixel art cat gamification",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.3",
+    "uuid": "^9.0.1"
+  }
+}
