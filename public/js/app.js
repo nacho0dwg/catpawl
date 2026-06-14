@@ -28,6 +28,13 @@ function clearSession() {
   Object.keys(AppState).forEach(k => AppState[k] = null);
 }
 
+function clearGroup() {
+  AppState.groupId = null;
+  AppState.groupCode = null;
+  AppState.groupName = null;
+  saveToStorage();
+}
+
 // ─── API helper ──────────────────────────────────────────────────
 async function api(method, path, body) {
   const opts = {

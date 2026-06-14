@@ -47,6 +47,8 @@ const Router = (() => {
     if (AppState.userId && AppState.groupId) {
       showNav();
       navigate('feed');
+    } else if (AppState.userId) {
+      navigate('my-groups');
     } else {
       navigate('onboarding');
     }

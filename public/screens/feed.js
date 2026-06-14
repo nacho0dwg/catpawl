@@ -7,7 +7,7 @@ Router.register('feed', async (screen) => {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
             <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Grupo</div>
-            <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;" id="group-name-title">Cargando...</div>
+            <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;cursor:pointer;" id="group-name-title">Cargando...</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             <button class="btn btn-ghost btn-sm" id="copy-code-btn" style="white-space:nowrap;">
@@ -45,9 +45,16 @@ Router.register('feed', async (screen) => {
     document.getElementById('code-display').textContent = AppState.groupCode;
   }
 
-  // Logout / change user
+  // Group name → go to group selector
+  document.getElementById('group-name-title').addEventListener('click', () => {
+    clearGroup();
+    Router.hideNav();
+    Router.navigate('my-groups');
+  });
+
+  // Settings → full logout (change user)
   document.getElementById('btn-logout').addEventListener('click', () => {
-    if (confirm('¿Cambiar de usuario o grupo?')) {
+    if (confirm('¿Cerrar sesión y cambiar de usuario?')) {
       clearSession();
       Router.hideNav();
       Router.navigate('onboarding');

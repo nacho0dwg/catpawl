@@ -14,7 +14,11 @@ function getCreditsForPayment(createdAt) {
 
 // Recalculate and upsert payments for an entire group after adding/removing an expense
 function recalculatePayments(groupId) {
-  const members = db.prepare('SELECT * FROM users WHERE group_id = ?').all(groupId);
+  const members = db.prepare(`
+    SELECT u.* FROM users u
+    JOIN user_groups ug ON u.id = ug.user_id
+    WHERE ug.group_id = ?
+  `).all(groupId);
   if (members.length < 2) return;
 
   const expenses = db.prepare(`
@@ -48,8 +52,8 @@ function recalculatePayments(groupId) {
   // Delete only pending payments for this group (preserve confirmed history)
   db.prepare(`
     DELETE FROM payments WHERE status = 'pending'
-    AND (from_user IN (SELECT id FROM users WHERE group_id = ?)
-      OR to_user IN (SELECT id FROM users WHERE group_id = ?))
+    AND (from_user IN (SELECT user_id FROM user_groups WHERE group_id = ?)
+      OR to_user IN (SELECT user_id FROM user_groups WHERE group_id = ?))
   `).run(groupId, groupId);
 
   let i = 0, j = 0;

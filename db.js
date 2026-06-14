@@ -84,6 +84,21 @@ const db = {
         FOREIGN KEY (from_user) REFERENCES users(id),
         FOREIGN KEY (to_user) REFERENCES users(id)
       );
+
+      CREATE TABLE IF NOT EXISTS user_groups (
+        user_id TEXT NOT NULL,
+        group_id TEXT NOT NULL,
+        joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, group_id),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (group_id) REFERENCES groups(id)
+      );
+    `);
+
+    // Migrate existing users into user_groups
+    _db.run(`
+      INSERT OR IGNORE INTO user_groups (user_id, group_id)
+      SELECT id, group_id FROM users WHERE group_id IS NOT NULL
     `);
 
     save(); // persist initial schema if DB was just created

@@ -68,14 +68,23 @@ router.get('/code/:code', (req, res) => {
 
 // GET /api/groups/:id/members — list members
 router.get('/:id/members', (req, res) => {
-  const members = db.prepare('SELECT * FROM users WHERE group_id = ? ORDER BY created_at ASC').all(req.params.id);
+  const members = db.prepare(`
+    SELECT u.* FROM users u
+    JOIN user_groups ug ON u.id = ug.user_id
+    WHERE ug.group_id = ?
+    ORDER BY ug.joined_at ASC
+  `).all(req.params.id);
   res.json(members);
 });
 
 // GET /api/groups/:id/summary — balances + settlement plan
 router.get('/:id/summary', (req, res) => {
   const groupId = req.params.id;
-  const members = db.prepare('SELECT * FROM users WHERE group_id = ?').all(groupId);
+  const members = db.prepare(`
+    SELECT u.* FROM users u
+    JOIN user_groups ug ON u.id = ug.user_id
+    WHERE ug.group_id = ?
+  `).all(groupId);
   if (!members.length) return res.json({ members: [], transfers: [], totalSpent: 0 });
 
   const memberMap = Object.fromEntries(members.map(m => [m.id, m]));

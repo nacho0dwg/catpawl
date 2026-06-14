@@ -17,6 +17,8 @@ router.post('/', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(id, group_id, nickname.trim(), alias || null, cat_color || 'orange', cat_accessory || null, hat || null);
 
+  db.prepare('INSERT OR IGNORE INTO user_groups (user_id, group_id) VALUES (?, ?)').run(id, group_id);
+
   res.json(db.prepare('SELECT * FROM users WHERE id = ?').get(id));
 });
 
@@ -46,6 +48,42 @@ router.patch('/:id', (req, res) => {
   `).run(updated.cat_color, updated.cat_accessory, updated.hat, updated.credits, req.params.id);
 
   res.json(db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id));
+});
+
+// GET /api/users/:id/groups — list all groups the user belongs to
+router.get('/:id/groups', (req, res) => {
+  const groups = db.prepare(`
+    SELECT g.*,
+      (SELECT COUNT(*) FROM user_groups ug2 WHERE ug2.group_id = g.id) as member_count
+    FROM groups g
+    JOIN user_groups ug ON g.id = ug.group_id
+    WHERE ug.user_id = ?
+    ORDER BY ug.joined_at ASC
+  `).all(req.params.id);
+  res.json(groups);
+});
+
+// POST /api/users/:id/join — join a group by invite code (idempotent)
+router.post('/:id/join', (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'user not found' });
+
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'code required' });
+
+  const group = db.prepare('SELECT * FROM groups WHERE code = ?').get(code.toUpperCase());
+  if (!group) return res.status(404).json({ error: 'group not found' });
+
+  db.prepare('INSERT OR IGNORE INTO user_groups (user_id, group_id) VALUES (?, ?)').run(req.params.id, group.id);
+
+  const member_count = db.prepare('SELECT COUNT(*) as c FROM user_groups WHERE group_id = ?').get(group.id).c;
+  res.json({ ...group, member_count });
+});
+
+// DELETE /api/users/:id/groups/:groupId — leave a group
+router.delete('/:id/groups/:groupId', (req, res) => {
+  db.prepare('DELETE FROM user_groups WHERE user_id = ? AND group_id = ?').run(req.params.id, req.params.groupId);
+  res.json({ ok: true });
 });
 
 // GET /api/users/:id/debts — pending payments involving this user
