@@ -5,27 +5,26 @@ const path = require('path');
 
 const DB_PATH = process.env.DB_PATH || '/app/data/catpawl.db';
 
-const _dir = path.dirname(DB_PATH);
-if (!fs.existsSync(_dir)) fs.mkdirSync(_dir, { recursive: true });
-
 let _db = null;
 
-function save() {
+function saveDb() {
   if (!_db) return;
-  try {
-    fs.writeFileSync(DB_PATH, Buffer.from(_db.export()));
-  } catch (e) {
-    console.error('[db] save error:', e.message);
-  }
+  const buf = Buffer.from(_db.export());
+  fs.writeFileSync(DB_PATH, buf);
+  console.log('[db] saved —', buf.length, 'bytes');
 }
 
-// Shim: same .prepare().get/all/run API as better-sqlite3 / node:sqlite.
+// Shim: same .prepare().get/all/run API as better-sqlite3.
 // Each .get/.all/.run creates a fresh sql.js statement (correct for reuse in loops).
 const db = {
   async init() {
-    // Startup diagnostics — visible in Railway logs
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log('[db] created dir:', dir);
+    }
+
     console.log('[db] DB_PATH:', DB_PATH);
-    console.log('[db] dir exists:', fs.existsSync(path.dirname(DB_PATH)));
     console.log('[db] file exists:', fs.existsSync(DB_PATH));
     if (fs.existsSync(DB_PATH)) {
       console.log('[db] file size:', fs.statSync(DB_PATH).size, 'bytes');
@@ -33,9 +32,13 @@ const db = {
 
     const SQL = await initSqlJs();
 
-    _db = fs.existsSync(DB_PATH)
-      ? new SQL.Database(new Uint8Array(fs.readFileSync(DB_PATH)))
-      : new SQL.Database();
+    if (fs.existsSync(DB_PATH)) {
+      _db = new SQL.Database(new Uint8Array(fs.readFileSync(DB_PATH)));
+      console.log('[db] loaded existing DB from disk');
+    } else {
+      _db = new SQL.Database();
+      console.log('[db] created new in-memory DB');
+    }
 
     _db.run('PRAGMA foreign_keys = ON');
 
@@ -120,8 +123,8 @@ const db = {
       SELECT id, group_id FROM users WHERE group_id IS NOT NULL
     `);
 
-    save(); // persist initial schema if DB was just created
-    console.log('[db] ready —', DB_PATH);
+    saveDb();
+    console.log('[db] ready');
   },
 
   prepare(sql) {
@@ -156,7 +159,7 @@ const db = {
         } finally {
           stmt.free();
         }
-        save();
+        saveDb();
       },
     };
   },

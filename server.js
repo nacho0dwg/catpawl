@@ -1,23 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
 const db = require('./db');
 
 async function start() {
-  // Pre-DB startup check (visible in Railway logs)
-  const DB_PATH = process.env.DB_PATH || '/app/data/catpawl.db';
-  const dbDir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-    console.log('[startup] created dir:', dbDir);
-  }
-  console.log('[startup] DB_PATH:', DB_PATH);
-  console.log('[startup] DB file exists:', fs.existsSync(DB_PATH));
-  if (fs.existsSync(DB_PATH)) {
-    console.log('[startup] DB size:', fs.statSync(DB_PATH).size, 'bytes');
-  }
-
   await db.init();
 
   // Confirm loaded data (not a fresh DB)
