@@ -7,7 +7,18 @@ Router.register('feed', async (screen) => {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
             <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Grupo</div>
-            <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;cursor:pointer;" id="group-name-title">Cargando...</div>
+            <div style="display:flex;align-items:center;gap:7px;">
+              <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;cursor:pointer;" id="group-name-title">Cargando...</div>
+              <button id="btn-switch-group" title="Mis grupos"
+                style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);flex-shrink:0;">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                  <rect x="0" y="0" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
+                  <rect x="7.5" y="0" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
+                  <rect x="0" y="7.5" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
+                  <rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             <button class="btn btn-ghost btn-sm" id="copy-code-btn" style="white-space:nowrap;">
@@ -45,12 +56,13 @@ Router.register('feed', async (screen) => {
     document.getElementById('code-display').textContent = AppState.groupCode;
   }
 
-  // Group name → go to group selector
-  document.getElementById('group-name-title').addEventListener('click', () => {
-    clearGroup();
+  // Group name / grid button → go to group selector (keep groupId so back button works)
+  function goToMyGroups() {
     Router.hideNav();
     Router.navigate('my-groups');
-  });
+  }
+  document.getElementById('group-name-title').addEventListener('click', goToMyGroups);
+  document.getElementById('btn-switch-group').addEventListener('click', goToMyGroups);
 
   // Settings → full logout (change user)
   document.getElementById('btn-logout').addEventListener('click', () => {

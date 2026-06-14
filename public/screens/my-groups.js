@@ -14,8 +14,22 @@ Router.register('my-groups', async (screen) => {
   }
 
   async function renderList() {
+    const canGoBack = Boolean(AppState.groupId);
+
     screen.innerHTML = `
-      <div style="padding:48px 20px 16px;display:flex;align-items:flex-end;justify-content:space-between;">
+      ${canGoBack ? `
+        <div style="padding:16px 16px 0;">
+          <button id="btn-back-feed"
+            style="display:inline-flex;align-items:center;gap:6px;color:var(--text2);font-size:13px;font-weight:600;padding:8px 0;">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Volver al feed
+          </button>
+        </div>
+      ` : ''}
+
+      <div style="padding:${canGoBack ? '12px' : '48px'} 20px 16px;display:flex;align-items:flex-end;justify-content:space-between;">
         <div>
           <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Bienvenido</div>
           <div style="font-size:26px;font-weight:800;">${escHtml(AppState.userName || 'Mis grupos')}</div>
@@ -37,6 +51,13 @@ Router.register('my-groups', async (screen) => {
     document.getElementById('btn-new-group').addEventListener('click', () => { mode = 'create'; render(); });
     document.getElementById('btn-join-code').addEventListener('click', () => { mode = 'join'; render(); });
 
+    if (canGoBack) {
+      document.getElementById('btn-back-feed').addEventListener('click', () => {
+        Router.showNav();
+        Router.navigate('feed');
+      });
+    }
+
     try {
       const groups = await api('GET', `/users/${AppState.userId}/groups`);
       const list = document.getElementById('groups-list');
@@ -51,19 +72,27 @@ Router.register('my-groups', async (screen) => {
         return;
       }
 
-      list.innerHTML = groups.map(g => `
-        <div class="card" style="margin-bottom:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div style="font-size:16px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;padding-right:8px;">${escHtml(g.name)}</div>
-            <div style="font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-dim);padding:3px 8px;border-radius:6px;letter-spacing:2px;flex-shrink:0;">${g.code}</div>
+      list.innerHTML = groups.map(g => {
+        const isActive = g.id === AppState.groupId;
+        return `
+          <div class="card" style="margin-bottom:10px;${isActive ? 'border-color:var(--accent);' : ''}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;padding-right:8px;">
+                ${isActive ? `<div style="width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;"></div>` : ''}
+                <div style="font-size:16px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(g.name)}</div>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-dim);padding:3px 8px;border-radius:6px;letter-spacing:2px;flex-shrink:0;">${g.code}</div>
+            </div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${g.member_count} miembro${g.member_count !== 1 ? 's' : ''}</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-accent btn-sm" data-enter="${g.id}" data-name="${escHtml(g.name)}" data-code="${g.code}" style="flex:1;">
+                ${isActive ? 'Estás aquí' : 'Entrar'}
+              </button>
+              <button class="btn btn-ghost btn-sm" data-leave="${g.id}" data-leave-name="${escHtml(g.name)}" style="color:var(--orange);border-color:var(--orange-dim);flex:0 0 auto;">Salir</button>
+            </div>
           </div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${g.member_count} miembro${g.member_count !== 1 ? 's' : ''}</div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-accent btn-sm" data-enter="${g.id}" data-name="${escHtml(g.name)}" data-code="${g.code}" style="flex:1;">Entrar</button>
-            <button class="btn btn-ghost btn-sm" data-leave="${g.id}" data-leave-name="${escHtml(g.name)}" style="color:var(--orange);border-color:var(--orange-dim);flex:0 0 auto;">Salir</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       list.querySelectorAll('[data-enter]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -111,7 +140,7 @@ Router.register('my-groups', async (screen) => {
           </div>
           <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;">
             <button class="btn btn-accent" id="btn-create-submit">Crear grupo</button>
-            <button class="btn btn-ghost" id="btn-back">Volver</button>
+            <button class="btn btn-ghost" id="btn-back">← Volver</button>
           </div>
         </div>
       </div>
@@ -157,13 +186,14 @@ Router.register('my-groups', async (screen) => {
             <div style="color:var(--text2);font-size:14px;">Ingresá el código que te compartieron.</div>
           </div>
           <div class="input-group">
-            <label class="input-label" for="group-code">Código de 6 letras</label>
+            <label class="input-label" for="group-code">Código de 6 caracteres</label>
             <input class="input" id="group-code" type="text" placeholder="Ej: ABC123" maxlength="6"
-              style="font-size:24px;font-weight:700;letter-spacing:6px;text-align:center;text-transform:uppercase;" autocomplete="off" />
+              style="font-size:24px;font-weight:700;letter-spacing:6px;text-align:center;text-transform:uppercase;"
+              autocomplete="off" autocorrect="off" spellcheck="false" />
           </div>
           <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;">
             <button class="btn btn-accent" id="btn-join-submit">Unirme al grupo</button>
-            <button class="btn btn-ghost" id="btn-back">Volver</button>
+            <button class="btn btn-ghost" id="btn-back">← Volver</button>
           </div>
         </div>
       </div>
@@ -171,7 +201,9 @@ Router.register('my-groups', async (screen) => {
 
     const codeInput = document.getElementById('group-code');
     codeInput.focus();
-    codeInput.addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+    codeInput.addEventListener('input', e => {
+      e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
 
     document.getElementById('btn-back').addEventListener('click', () => { mode = 'list'; render(); });
     document.getElementById('btn-join-submit').addEventListener('click', async () => {
@@ -190,10 +222,14 @@ Router.register('my-groups', async (screen) => {
         AppState.groupCode = group.code;
         saveToStorage();
 
+        showToast(`Bienvenido a ${group.name}`, 'success');
         Router.showNav();
         Router.navigate('feed');
       } catch (e) {
-        showToast('Código inválido o grupo no encontrado', 'error');
+        const msg = e.message === 'group not found'
+          ? 'Código inválido, revisá que esté bien escrito'
+          : e.message || 'Error al unirse al grupo';
+        showToast(msg, 'error');
         btn.disabled = false;
         btn.textContent = 'Unirme al grupo';
       }
