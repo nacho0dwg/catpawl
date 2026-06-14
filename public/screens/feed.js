@@ -9,14 +9,9 @@ Router.register('feed', async (screen) => {
             <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Grupo</div>
             <div style="display:flex;align-items:center;gap:7px;">
               <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;cursor:pointer;" id="group-name-title">Cargando...</div>
-              <button id="btn-switch-group" title="Mis grupos"
-                style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);flex-shrink:0;">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                  <rect x="0" y="0" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
-                  <rect x="7.5" y="0" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
-                  <rect x="0" y="7.5" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
-                  <rect x="7.5" y="7.5" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
-                </svg>
+              <button id="btn-switch-group"
+                style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">
+                ⊞ Mis grupos
               </button>
             </div>
           </div>

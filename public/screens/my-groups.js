@@ -14,22 +14,18 @@ Router.register('my-groups', async (screen) => {
   }
 
   async function renderList() {
-    const canGoBack = Boolean(AppState.groupId);
+    const hasGroup = Boolean(AppState.groupId);
+    const backLabel = hasGroup ? '← Volver al feed' : '← Salir';
 
     screen.innerHTML = `
-      ${canGoBack ? `
-        <div style="padding:16px 16px 0;">
-          <button id="btn-back-feed"
-            style="display:inline-flex;align-items:center;gap:6px;color:var(--text2);font-size:13px;font-weight:600;padding:8px 0;">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Volver al feed
-          </button>
-        </div>
-      ` : ''}
+      <div style="padding:16px 16px 0;">
+        <button id="btn-back-top"
+          style="display:inline-flex;align-items:center;gap:6px;color:var(--text2);font-size:13px;font-weight:600;padding:8px 0;">
+          ${backLabel}
+        </button>
+      </div>
 
-      <div style="padding:${canGoBack ? '12px' : '48px'} 20px 16px;display:flex;align-items:flex-end;justify-content:space-between;">
+      <div style="padding:12px 20px 16px;display:flex;align-items:flex-end;justify-content:space-between;">
         <div>
           <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Bienvenido</div>
           <div style="font-size:26px;font-weight:800;">${escHtml(AppState.userName || 'Mis grupos')}</div>
@@ -51,12 +47,14 @@ Router.register('my-groups', async (screen) => {
     document.getElementById('btn-new-group').addEventListener('click', () => { mode = 'create'; render(); });
     document.getElementById('btn-join-code').addEventListener('click', () => { mode = 'join'; render(); });
 
-    if (canGoBack) {
-      document.getElementById('btn-back-feed').addEventListener('click', () => {
+    document.getElementById('btn-back-top').addEventListener('click', () => {
+      if (AppState.groupId) {
         Router.showNav();
         Router.navigate('feed');
-      });
-    }
+      } else {
+        Router.navigate('onboarding');
+      }
+    });
 
     try {
       const groups = await api('GET', `/users/${AppState.userId}/groups`);
