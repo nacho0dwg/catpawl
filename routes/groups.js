@@ -127,4 +127,20 @@ router.get('/:id/summary', (req, res) => {
   res.json({ members: balances, transfers, totalSpent });
 });
 
+// POST /api/groups/:id/regenerate-code — replace invite code (old code stops working)
+router.post('/:id/regenerate-code', (req, res) => {
+  const group = db.prepare('SELECT * FROM groups WHERE id = ?').get(req.params.id);
+  if (!group) return res.status(404).json({ error: 'group not found' });
+
+  let code;
+  let attempts = 0;
+  do {
+    code = generateCode();
+    if (++attempts > 20) return res.status(500).json({ error: 'could not generate unique code' });
+  } while (db.prepare('SELECT id FROM groups WHERE code = ? AND id != ?').get(code, req.params.id));
+
+  db.prepare('UPDATE groups SET code = ? WHERE id = ?').run(code, req.params.id);
+  res.json(db.prepare('SELECT * FROM groups WHERE id = ?').get(req.params.id));
+});
+
 module.exports = router;

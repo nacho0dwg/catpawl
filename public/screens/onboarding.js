@@ -1,7 +1,7 @@
 Router.register('onboarding', (screen) => {
   Router.hideNav();
 
-  let step = 'home'; // home | create-group | join-group | setup-user
+  let step = 'home'; // home | create-group | join-group | setup-user | recover
   let pendingGroupId = null;
   let pendingGroupName = null;
   let selectedColor = 'orange';
@@ -13,7 +13,8 @@ Router.register('onboarding', (screen) => {
       home: renderHome,
       'create-group': renderCreateGroup,
       'join-group': renderJoinGroup,
-      'setup-user': renderSetupUser
+      'setup-user': renderSetupUser,
+      recover: renderRecover
     };
     (views[step] || renderHome)();
   }
@@ -34,6 +35,7 @@ Router.register('onboarding', (screen) => {
         <div style="display:flex;flex-direction:column;gap:12px;">
           <button class="btn btn-accent" id="btn-create">Crear grupo</button>
           <button class="btn btn-ghost" id="btn-join">Unirme con código</button>
+          <button class="btn btn-ghost" id="btn-recover" style="color:var(--text2);font-size:13px;">Ya tengo cuenta</button>
         </div>
       </div>
     `;
@@ -43,6 +45,7 @@ Router.register('onboarding', (screen) => {
 
     document.getElementById('btn-create').addEventListener('click', () => { fromCreate = true; step = 'create-group'; render(); });
     document.getElementById('btn-join').addEventListener('click', () => { fromCreate = false; step = 'join-group'; render(); });
+    document.getElementById('btn-recover').addEventListener('click', () => { step = 'recover'; render(); });
   }
 
   function renderCreateGroup() {
@@ -177,6 +180,13 @@ Router.register('onboarding', (screen) => {
             <input class="input" id="nickname" type="text" placeholder="Ej: Nacho" maxlength="20" autocomplete="off" />
           </div>
 
+          <div class="input-group">
+            <label class="input-label" for="alias">Alias de recuperación <span style="font-weight:400;color:var(--text2);">(opcional)</span></label>
+            <input class="input" id="alias" type="text" placeholder="Ej: nacho-viajes" maxlength="30"
+              autocomplete="off" autocorrect="off" spellcheck="false" style="text-transform:lowercase;" />
+            <div style="font-size:11px;color:var(--text2);margin-top:4px;">Solo vos lo sabés. Permite recuperar tu cuenta si perdés el acceso.</div>
+          </div>
+
           <div>
             <div class="input-label" style="margin-bottom:10px;">Color de tu gato</div>
             <div class="cat-color-grid">
@@ -219,6 +229,12 @@ Router.register('onboarding', (screen) => {
       const nickname = document.getElementById('nickname').value.trim();
       if (!nickname) { showToast('Ingresá tu nombre', 'error'); return; }
 
+      const aliasRaw = document.getElementById('alias').value.trim().toLowerCase();
+      // Auto-generate alias if blank so recovery always works
+      const alias = aliasRaw ||
+        nickname.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12) +
+        Math.random().toString(36).slice(2, 6);
+
       const btn = document.getElementById('btn-enter');
       btn.disabled = true;
       btn.textContent = 'Entrando...';
@@ -227,8 +243,12 @@ Router.register('onboarding', (screen) => {
         const user = await api('POST', '/users', {
           group_id: pendingGroupId,
           nickname,
+          alias,
           cat_color: selectedColor
         });
+
+        // Persist token for cross-device / redeploy recovery
+        localStorage.setItem(TOKEN_KEY, user.token);
 
         AppState.groupId = pendingGroupId;
         AppState.userId = user.id;
@@ -237,12 +257,94 @@ Router.register('onboarding', (screen) => {
         AppState.userColor = selectedColor;
         saveToStorage();
 
-        Router.showNav();
-        Router.navigate('feed');
+        // Show recovery key before entering
+        screen.innerHTML = `
+          <div class="onboarding-screen">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:0 8px;">
+              <div style="font-size:36px;">🔑</div>
+              <div style="font-size:20px;font-weight:800;">Tu alias de recuperación</div>
+              <div style="color:var(--text2);font-size:13px;max-width:280px;">Anotalo. Si perdés el acceso en este dispositivo, lo usás para recuperar tu cuenta.</div>
+              <div style="background:var(--surface2);border:2px solid var(--accent);border-radius:12px;padding:18px 32px;">
+                <div style="font-size:28px;font-weight:800;color:var(--accent);letter-spacing:2px;">${alias}</div>
+              </div>
+            </div>
+            <button class="btn btn-accent" id="btn-enter-final">¡Entrar al grupo!</button>
+          </div>
+        `;
+
+        document.getElementById('btn-enter-final').addEventListener('click', () => {
+          Router.showNav();
+          Router.navigate('feed');
+        });
       } catch (e) {
-        showToast(e.message, 'error');
+        const msg = e.message === 'alias already taken'
+          ? 'Ese alias ya está tomado, elegí otro'
+          : e.message;
+        showToast(msg, 'error');
         btn.disabled = false;
         btn.textContent = 'Entrar al grupo';
+      }
+    });
+  }
+
+  function renderRecover() {
+    screen.innerHTML = `
+      <div class="onboarding-screen">
+        <div style="padding-top:48px;flex:1;display:flex;flex-direction:column;gap:24px;">
+          <div>
+            <div style="font-size:24px;font-weight:800;margin-bottom:8px;">Recuperar cuenta</div>
+            <div style="color:var(--text2);font-size:14px;">Ingresá el alias que usaste al registrarte.</div>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="recovery-alias">Tu alias secreto</label>
+            <input class="input" id="recovery-alias" type="text" placeholder="Ej: nacho-viajes"
+              autocomplete="off" autocorrect="off" spellcheck="false" style="text-transform:lowercase;" />
+          </div>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-accent" id="btn-recover-submit">Recuperar cuenta</button>
+            <button class="btn btn-ghost" id="btn-back">← Volver</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const aliasInput = document.getElementById('recovery-alias');
+    aliasInput.focus();
+
+    document.getElementById('btn-back').addEventListener('click', () => { step = 'home'; render(); });
+    document.getElementById('btn-recover-submit').addEventListener('click', async () => {
+      const alias = aliasInput.value.trim();
+      if (!alias) { showToast('Ingresá tu alias de recuperación', 'error'); return; }
+
+      const btn = document.getElementById('btn-recover-submit');
+      btn.disabled = true;
+      btn.textContent = 'Buscando...';
+
+      try {
+        const data = await api('POST', '/auth/recover', { alias });
+
+        localStorage.setItem(TOKEN_KEY, data.token);
+        AppState.userId = data.userId;
+        AppState.userName = data.userName;
+        AppState.userColor = data.userColor;
+
+        if (data.groups.length === 1) {
+          AppState.groupId = data.groups[0].id;
+          AppState.groupName = data.groups[0].name;
+          AppState.groupCode = data.groups[0].code;
+        }
+        saveToStorage();
+
+        showToast(`Bienvenido de vuelta, ${data.userName}!`, 'success');
+        Router.showNav();
+        AppState.groupId ? Router.navigate('feed') : Router.navigate('my-groups');
+      } catch (e) {
+        const msg = e.message === 'alias not found'
+          ? 'Alias no encontrado. Revisá que esté bien escrito.'
+          : e.message || 'Error al recuperar la cuenta';
+        showToast(msg, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Recuperar cuenta';
       }
     });
   }

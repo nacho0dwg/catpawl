@@ -9,6 +9,7 @@ const AppState = {
 };
 
 const STORAGE_KEY = 'catpawl_session';
+const TOKEN_KEY = 'catpawl_token';
 
 function loadFromStorage() {
   try {
@@ -25,6 +26,7 @@ function saveToStorage() {
 
 function clearSession() {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(TOKEN_KEY);
   Object.keys(AppState).forEach(k => AppState[k] = null);
 }
 
@@ -141,8 +143,30 @@ function getCategoryLabel(cat) {
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   loadFromStorage();
+
+  // If no userId in storage, try restoring from token
+  if (!AppState.userId) {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      try {
+        const data = await api('GET', `/auth/me?token=${encodeURIComponent(token)}`);
+        AppState.userId = data.userId;
+        AppState.userName = data.userName;
+        AppState.userColor = data.userColor;
+        // Auto-select group only if exactly one
+        if (!AppState.groupId && data.groups.length === 1) {
+          AppState.groupId = data.groups[0].id;
+          AppState.groupName = data.groups[0].name;
+          AppState.groupCode = data.groups[0].code;
+        }
+        saveToStorage();
+      } catch {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+    }
+  }
 
   Router.init();
 });

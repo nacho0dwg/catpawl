@@ -23,6 +23,14 @@ function save() {
 // Each .get/.all/.run creates a fresh sql.js statement (correct for reuse in loops).
 const db = {
   async init() {
+    // Startup diagnostics — visible in Railway logs
+    console.log('[db] DB_PATH:', DB_PATH);
+    console.log('[db] dir exists:', fs.existsSync(path.dirname(DB_PATH)));
+    console.log('[db] file exists:', fs.existsSync(DB_PATH));
+    if (fs.existsSync(DB_PATH)) {
+      console.log('[db] file size:', fs.statSync(DB_PATH).size, 'bytes');
+    }
+
     const SQL = await initSqlJs();
 
     _db = fs.existsSync(DB_PATH)
@@ -93,6 +101,17 @@ const db = {
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (group_id) REFERENCES groups(id)
       );
+
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_alias
+        ON users(alias) WHERE alias IS NOT NULL;
     `);
 
     // Migrate existing users into user_groups

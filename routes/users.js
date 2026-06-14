@@ -3,6 +3,10 @@ const router = express.Router();
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
 
+function makeToken() {
+  return uuidv4().replace(/-/g, '') + uuidv4().replace(/-/g, '');
+}
+
 // POST /api/users — create user in a group
 router.post('/', (req, res) => {
   const { group_id, nickname, alias, cat_color, cat_accessory, hat } = req.body;
@@ -11,15 +15,29 @@ router.post('/', (req, res) => {
   const group = db.prepare('SELECT id FROM groups WHERE id = ?').get(group_id);
   if (!group) return res.status(404).json({ error: 'group not found' });
 
+  const cleanAlias = alias ? alias.trim().toLowerCase() : null;
   const id = uuidv4();
-  db.prepare(`
-    INSERT INTO users (id, group_id, nickname, alias, cat_color, cat_accessory, hat)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, group_id, nickname.trim(), alias || null, cat_color || 'orange', cat_accessory || null, hat || null);
+
+  try {
+    db.prepare(`
+      INSERT INTO users (id, group_id, nickname, alias, cat_color, cat_accessory, hat)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, group_id, nickname.trim(), cleanAlias, cat_color || 'orange', cat_accessory || null, hat || null);
+  } catch (e) {
+    if (e.message && e.message.includes('UNIQUE') && e.message.includes('alias')) {
+      return res.status(409).json({ error: 'alias already taken' });
+    }
+    throw e;
+  }
 
   db.prepare('INSERT OR IGNORE INTO user_groups (user_id, group_id) VALUES (?, ?)').run(id, group_id);
 
-  res.json(db.prepare('SELECT * FROM users WHERE id = ?').get(id));
+  // Create session token
+  const token = makeToken();
+  db.prepare('INSERT INTO sessions (id, user_id, token) VALUES (?, ?, ?)').run(uuidv4(), id, token);
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  res.json({ ...user, token });
 });
 
 // GET /api/users/:id — get user
