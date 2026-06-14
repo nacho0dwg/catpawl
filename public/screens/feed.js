@@ -7,19 +7,35 @@ Router.register('feed', async (screen) => {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
             <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Grupo</div>
-            <div style="display:flex;align-items:center;gap:7px;">
-              <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;cursor:pointer;" id="group-name-title">Cargando...</div>
-              <button id="btn-switch-group"
-                style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">
-                ⊞ Mis grupos
-              </button>
-            </div>
+            <div style="font-size:20px;font-weight:800;letter-spacing:-.5px;cursor:pointer;" id="group-name-title">Cargando...</div>
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             <button class="btn btn-ghost btn-sm" id="copy-code-btn" style="white-space:nowrap;">
               <span id="code-display">...</span>
             </button>
-            <button class="btn btn-ghost btn-sm" id="btn-logout" style="width:auto;padding:8px 10px;font-size:15px;" title="Cambiar usuario">⚙</button>
+            <div style="position:relative;">
+              <button class="btn btn-ghost btn-sm" id="btn-gear" style="width:auto;padding:8px 10px;font-size:15px;" title="Opciones">⚙</button>
+              <div id="gear-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--surface);border:1px solid var(--border2);border-radius:12px;overflow:hidden;min-width:164px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+                <button id="btn-my-groups-dd" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;font-size:13px;font-weight:600;color:var(--text);background:none;border:none;cursor:pointer;text-align:left;">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <rect x="0.5" y="0.5" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
+                    <rect x="8" y="0.5" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
+                    <rect x="0.5" y="8" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
+                    <rect x="8" y="8" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
+                  </svg>
+                  Mis grupos
+                </button>
+                <div style="height:1px;background:var(--border2);margin:0 12px;"></div>
+                <button id="btn-logout-dd" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;font-size:13px;font-weight:600;color:#ff5714;background:none;border:none;cursor:pointer;text-align:left;">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M5 1H2C1.45 1 1 1.45 1 2V12C1 12.55 1.45 13 2 13H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M9 5L12.5 7L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M5 7H12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div style="margin-top:12px;display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;" id="members-row"></div>
@@ -51,16 +67,32 @@ Router.register('feed', async (screen) => {
     document.getElementById('code-display').textContent = AppState.groupCode;
   }
 
-  // Group name / grid button → go to group selector (keep groupId so back button works)
+  // Group name → go to group selector (keep groupId so back button works)
   function goToMyGroups() {
     Router.hideNav();
     Router.navigate('my-groups');
   }
   document.getElementById('group-name-title').addEventListener('click', goToMyGroups);
-  document.getElementById('btn-switch-group').addEventListener('click', goToMyGroups);
 
-  // Settings → full logout (change user)
-  document.getElementById('btn-logout').addEventListener('click', () => {
+  // Gear dropdown
+  const gearBtn = document.getElementById('btn-gear');
+  const dropdown = document.getElementById('gear-dropdown');
+
+  function closeDropdown() { dropdown.style.display = 'none'; }
+
+  gearBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (dropdown.style.display !== 'none') {
+      closeDropdown();
+    } else {
+      dropdown.style.display = 'block';
+      setTimeout(() => document.addEventListener('click', closeDropdown, { once: true }), 0);
+    }
+  });
+
+  document.getElementById('btn-my-groups-dd').addEventListener('click', goToMyGroups);
+  document.getElementById('btn-logout-dd').addEventListener('click', () => {
+    closeDropdown();
     if (confirm('¿Cerrar sesión y cambiar de usuario?')) {
       clearSession();
       Router.hideNav();

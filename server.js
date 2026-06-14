@@ -20,6 +20,11 @@ async function start() {
 
   await db.init();
 
+  // Confirm loaded data (not a fresh DB)
+  const groupCount = db.prepare('SELECT COUNT(*) as c FROM groups').get().c;
+  const userCount  = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+  console.log(`[startup] DB loaded: ${groupCount} group(s), ${userCount} user(s)`);
+
   const app = express();
   const PORT = process.env.PORT || 3000;
 
