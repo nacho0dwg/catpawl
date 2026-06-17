@@ -49,12 +49,19 @@ Router.register('debts', async (screen) => {
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
               <div class="pill-debt">${formatAmount(p.amount)}</div>
-              <button class="btn btn-accent btn-sm confirm-btn"
-                data-id="${p.id}"
-                data-amount="${p.amount}"
-                data-name="${escHtml(p.to_name)}">
-                Pagar
-              </button>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-ghost btn-sm mp-btn"
+                  data-alias="${p.to_alias ? escHtml(p.to_alias) : ''}"
+                  style="color:var(--mint);border-color:var(--mint);">
+                  Ir a MP 💸
+                </button>
+                <button class="btn btn-accent btn-sm confirm-btn"
+                  data-id="${p.id}"
+                  data-amount="${p.amount}"
+                  data-name="${escHtml(p.to_name)}">
+                  Pagar
+                </button>
+              </div>
             </div>
             ${isUrgent ? `<div class="debt-thief">${renderThiefCat(days)}</div>` : ''}
           </div>
@@ -80,6 +87,17 @@ Router.register('debts', async (screen) => {
     }
 
     content.innerHTML = html;
+
+    // "Ir a MP" buttons — open Mercado Pago, prefilling the creditor's alias when available
+    content.querySelectorAll('.mp-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const alias = btn.dataset.alias;
+        const url = alias
+          ? `https://link.mercadopago.com.ar/${encodeURIComponent(alias)}`
+          : 'https://www.mercadopago.com.ar/cobros';
+        window.open(url, '_blank');
+      });
+    });
 
     // Confirm payment buttons
     content.querySelectorAll('.confirm-btn').forEach(btn => {

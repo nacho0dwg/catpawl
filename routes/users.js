@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
+const { recalculatePayments } = require('./expenses');
 
 function makeToken() {
   return uuidv4().replace(/-/g, '') + uuidv4().replace(/-/g, '');
@@ -52,18 +53,38 @@ router.patch('/:id', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).json({ error: 'user not found' });
 
-  const { cat_color, cat_accessory, hat, credits } = req.body;
+  const { cat_color, cat_accessory, hat, credits, alias, cbu } = req.body;
+
+  // Resolve alias: if provided, normalize and check it's not taken by another user
+  let newAlias = user.alias;
+  if (alias !== undefined) {
+    newAlias = alias ? alias.trim().toLowerCase() : null;
+    if (newAlias) {
+      const taken = db.prepare('SELECT id FROM users WHERE alias = ? AND id != ?').get(newAlias, req.params.id);
+      if (taken) return res.status(409).json({ error: 'alias already taken' });
+    }
+  }
+
   const updated = {
     cat_color: cat_color ?? user.cat_color,
     cat_accessory: cat_accessory !== undefined ? cat_accessory : user.cat_accessory,
     hat: hat !== undefined ? hat : user.hat,
-    credits: credits !== undefined ? credits : user.credits
+    credits: credits !== undefined ? credits : user.credits,
+    alias: newAlias,
+    cbu: cbu !== undefined ? (cbu ? cbu.trim() : null) : user.cbu
   };
 
-  db.prepare(`
-    UPDATE users SET cat_color = ?, cat_accessory = ?, hat = ?, credits = ?
-    WHERE id = ?
-  `).run(updated.cat_color, updated.cat_accessory, updated.hat, updated.credits, req.params.id);
+  try {
+    db.prepare(`
+      UPDATE users SET cat_color = ?, cat_accessory = ?, hat = ?, credits = ?, alias = ?, cbu = ?
+      WHERE id = ?
+    `).run(updated.cat_color, updated.cat_accessory, updated.hat, updated.credits, updated.alias, updated.cbu, req.params.id);
+  } catch (e) {
+    if (e.message && e.message.includes('UNIQUE') && e.message.includes('alias')) {
+      return res.status(409).json({ error: 'alias already taken' });
+    }
+    throw e;
+  }
 
   res.json(db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id));
 });
@@ -98,9 +119,42 @@ router.post('/:id/join', (req, res) => {
   res.json({ ...group, member_count });
 });
 
-// DELETE /api/users/:id/groups/:groupId — leave a group
+// DELETE /api/users/:id/groups/:groupId — leave a group and wipe the user's data in it
 router.delete('/:id/groups/:groupId', (req, res) => {
-  db.prepare('DELETE FROM user_groups WHERE user_id = ? AND group_id = ?').run(req.params.id, req.params.groupId);
+  const userId = req.params.id;
+  const groupId = req.params.groupId;
+
+  // 1. Delete the user's own expenses in this group (and their expense_members)
+  const ownExpenses = db.prepare(
+    'SELECT id FROM expenses WHERE group_id = ? AND payer_id = ?'
+  ).all(groupId, userId).map(r => r.id);
+  for (const eid of ownExpenses) {
+    db.prepare('DELETE FROM expense_members WHERE expense_id = ?').run(eid);
+    db.prepare('DELETE FROM expenses WHERE id = ?').run(eid);
+  }
+
+  // 2. Remove the user from any remaining expense splits in this group
+  db.prepare(`
+    DELETE FROM expense_members
+    WHERE user_id = ?
+      AND expense_id IN (SELECT id FROM expenses WHERE group_id = ?)
+  `).run(userId, groupId);
+
+  // 3. Delete pending payments involving this user within this group
+  db.prepare(`
+    DELETE FROM payments
+    WHERE status = 'pending'
+      AND (from_user = ? OR to_user = ?)
+      AND (from_user IN (SELECT user_id FROM user_groups WHERE group_id = ?)
+        OR to_user IN (SELECT user_id FROM user_groups WHERE group_id = ?))
+  `).run(userId, userId, groupId, groupId);
+
+  // 4. Remove the membership
+  db.prepare('DELETE FROM user_groups WHERE user_id = ? AND group_id = ?').run(userId, groupId);
+
+  // 5. Recalculate the group's payments with the remaining members/expenses
+  recalculatePayments(groupId);
+
   res.json({ ok: true });
 });
 
@@ -109,7 +163,7 @@ router.get('/:id/debts', (req, res) => {
   const userId = req.params.id;
 
   const owes = db.prepare(`
-    SELECT p.*, u.nickname as to_name, u.cat_color as to_color
+    SELECT p.*, u.nickname as to_name, u.cat_color as to_color, u.alias as to_alias, u.cbu as to_cbu
     FROM payments p
     JOIN users u ON p.to_user = u.id
     WHERE p.from_user = ? AND p.status = 'pending'

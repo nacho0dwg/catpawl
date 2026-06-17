@@ -109,7 +109,8 @@ router.get('/:id/summary', (req, res) => {
   }
 
   for (const exp of Object.values(expenseGroups)) {
-    const share = exp.amount / exp.members.length;
+    const totalParticipants = exp.members.length + (exp.external_count || 0);
+    const share = exp.amount / totalParticipants;
     balanceMap[exp.payer_id] += exp.amount;
     for (const uid of exp.members) balanceMap[uid] -= share;
   }

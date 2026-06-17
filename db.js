@@ -55,6 +55,7 @@ const db = {
         group_id TEXT NOT NULL,
         nickname TEXT NOT NULL,
         alias TEXT,
+        cbu TEXT,
         avatar_url TEXT,
         cat_color TEXT NOT NULL DEFAULT 'orange',
         cat_accessory TEXT,
@@ -72,6 +73,7 @@ const db = {
         concept TEXT NOT NULL,
         category TEXT NOT NULL DEFAULT 'otro',
         expense_date TEXT NOT NULL,
+        external_count INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (group_id) REFERENCES groups(id),
         FOREIGN KEY (payer_id) REFERENCES users(id)
@@ -122,6 +124,22 @@ const db = {
       INSERT OR IGNORE INTO user_groups (user_id, group_id)
       SELECT id, group_id FROM users WHERE group_id IS NOT NULL
     `);
+
+    // Migrate: add users.cbu if the column is missing (older DBs)
+    try {
+      _db.run('ALTER TABLE users ADD COLUMN cbu TEXT');
+      console.log('[db] migrated: added users.cbu');
+    } catch (e) {
+      // column already exists — ignore
+    }
+
+    // Migrate: add expenses.external_count if the column is missing (older DBs)
+    try {
+      _db.run('ALTER TABLE expenses ADD COLUMN external_count INTEGER NOT NULL DEFAULT 0');
+      console.log('[db] migrated: added expenses.external_count');
+    } catch (e) {
+      // column already exists — ignore
+    }
 
     saveDb();
     console.log('[db] ready');

@@ -16,6 +16,14 @@ Router.register('feed', async (screen) => {
             <div style="position:relative;">
               <button class="btn btn-ghost btn-sm" id="btn-gear" style="width:auto;padding:8px 10px;font-size:15px;" title="Opciones">⚙</button>
               <div id="gear-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--surface);border:1px solid var(--border2);border-radius:12px;overflow:hidden;min-width:164px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+                <button id="btn-profile-dd" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;font-size:13px;font-weight:600;color:var(--text);background:none;border:none;cursor:pointer;text-align:left;">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="4" r="2.6" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M1.8 12.5C1.8 9.9 4.1 8.3 7 8.3C9.9 8.3 12.2 9.9 12.2 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                  Mi perfil
+                </button>
+                <div style="height:1px;background:var(--border2);margin:0 12px;"></div>
                 <button id="btn-my-groups-dd" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;font-size:13px;font-weight:600;color:var(--text);background:none;border:none;cursor:pointer;text-align:left;">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                     <rect x="0.5" y="0.5" width="5.5" height="5.5" rx="1.2" fill="currentColor"/>
@@ -90,6 +98,10 @@ Router.register('feed', async (screen) => {
     }
   });
 
+  document.getElementById('btn-profile-dd').addEventListener('click', () => {
+    closeDropdown();
+    Router.navigate('profile'); // keep the bottom nav visible so the user can return
+  });
   document.getElementById('btn-my-groups-dd').addEventListener('click', goToMyGroups);
   document.getElementById('btn-logout-dd').addEventListener('click', () => {
     closeDropdown();
@@ -199,7 +211,7 @@ Router.register('feed', async (screen) => {
 
   function renderExpenseCard(exp) {
     const myShare = exp.members.find(m => m.user_id === AppState.userId)
-      ? formatAmount(exp.amount / exp.members.length)
+      ? formatAmount(exp.amount / (exp.members.length + (exp.external_count || 0)))
       : null;
     const isPayer = exp.payer_id === AppState.userId;
 

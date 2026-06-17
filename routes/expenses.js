@@ -37,7 +37,10 @@ function recalculatePayments(groupId) {
   }
 
   for (const exp of Object.values(expenseGroups)) {
-    const share = exp.amount / exp.members.length;
+    // External participants share the cost but aren't tracked in the DB;
+    // they only enlarge the divisor so each member pays a smaller slice.
+    const totalParticipants = exp.members.length + (exp.external_count || 0);
+    const share = exp.amount / totalParticipants;
     balanceMap[exp.payer_id] += exp.amount;
     for (const uid of exp.members) balanceMap[uid] -= share;
   }
@@ -74,7 +77,7 @@ function recalculatePayments(groupId) {
 
 // POST /api/expenses — add expense
 router.post('/', (req, res) => {
-  const { group_id, payer_id, amount, concept, category, expense_date, member_ids } = req.body;
+  const { group_id, payer_id, amount, concept, category, expense_date, member_ids, external_count } = req.body;
 
   if (!group_id || !payer_id || !amount || !concept || !member_ids?.length) {
     return res.status(400).json({ error: 'group_id, payer_id, amount, concept and member_ids required' });
@@ -82,11 +85,12 @@ router.post('/', (req, res) => {
 
   const id = uuidv4();
   const date = expense_date || new Date().toISOString().slice(0, 10);
+  const externalCount = Math.max(0, parseInt(external_count, 10) || 0);
 
   db.prepare(`
-    INSERT INTO expenses (id, group_id, payer_id, amount, concept, category, expense_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, group_id, payer_id, parseFloat(amount), concept.trim(), category || 'otro', date);
+    INSERT INTO expenses (id, group_id, payer_id, amount, concept, category, expense_date, external_count)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, group_id, payer_id, parseFloat(amount), concept.trim(), category || 'otro', date, externalCount);
 
   const insertMember = db.prepare('INSERT INTO expense_members (expense_id, user_id) VALUES (?, ?)');
   for (const uid of member_ids) insertMember.run(id, uid);
@@ -157,4 +161,5 @@ router.post('/payments/:id/confirm', (req, res) => {
   res.json({ ok: true, credits_earned: earned, total_credits: user.credits });
 });
 
+router.recalculatePayments = recalculatePayments;
 module.exports = router;

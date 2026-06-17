@@ -23,6 +23,7 @@ Router.register('add-expense', async (screen) => {
   let selectedMembers = new Set();
   let members = [];
   let amountRaw = '';
+  let externalMembers = []; // [{ name }] — display-only people outside the group
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -222,6 +223,15 @@ Router.register('add-expense', async (screen) => {
         </div>
       </div>
 
+      <!-- External (non-member) participants -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="input-label" style="margin-bottom:0;">Externos <span id="ext-count" style="font-weight:400;color:var(--text2);"></span></div>
+          <button type="button" style="font-size:12px;color:var(--accent);font-weight:600;" id="btn-add-external">+ Agregar externo</button>
+        </div>
+        <div id="external-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+
       <!-- Per-person preview -->
       <div id="share-preview" style="display:none;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:13px;color:var(--text2);">Por persona</span>
@@ -287,6 +297,67 @@ Router.register('add-expense', async (screen) => {
     document.getElementById('members-list').innerHTML = `<div style="color:var(--orange);font-size:13px;">${e.message}</div>`;
   }
 
+  // ── External participants ─────────────────────────────────────────
+  const externalListEl = document.getElementById('external-list');
+  const extCountEl = document.getElementById('ext-count');
+
+  function renderExternals() {
+    extCountEl.textContent = externalMembers.length ? `(${externalMembers.length})` : '';
+    externalListEl.innerHTML = externalMembers.map((ex, i) => `
+      <div class="external-chip" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:999px;padding:6px 10px;font-size:13px;font-weight:600;">
+        <span>${escHtml(ex.name)}</span>
+        <button type="button" class="ext-remove" data-i="${i}" style="border:none;background:transparent;color:var(--text2);font-size:14px;line-height:1;cursor:pointer;padding:0;">✕</button>
+      </div>
+    `).join('');
+
+    externalListEl.querySelectorAll('.ext-remove').forEach(b => {
+      b.addEventListener('click', () => {
+        externalMembers.splice(parseInt(b.dataset.i, 10), 1);
+        renderExternals();
+        updateSharePreview();
+      });
+    });
+  }
+
+  document.getElementById('btn-add-external').addEventListener('click', () => {
+    if (externalListEl.querySelector('.external-input')) {
+      externalListEl.querySelector('.external-input').focus();
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:inline-flex;align-items:center;background:var(--surface2);border:1px solid var(--border2);border-radius:999px;padding:2px 8px;';
+    const input = document.createElement('input');
+    input.className = 'external-input';
+    input.type = 'text';
+    input.placeholder = 'Nombre';
+    input.maxLength = 20;
+    input.style.cssText = 'background:transparent;border:none;outline:none;color:var(--text);font-size:13px;font-weight:600;width:96px;padding:4px 0;';
+    wrap.appendChild(input);
+    externalListEl.appendChild(wrap);
+    input.focus();
+
+    let committed = false;
+    function commit() {
+      if (committed) return;
+      committed = true;
+      const name = input.value.trim();
+      wrap.remove();
+      if (name) {
+        externalMembers.push({ name });
+        renderExternals();
+        updateSharePreview();
+      }
+    }
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      else if (e.key === 'Escape') { committed = true; wrap.remove(); }
+    });
+    input.addEventListener('blur', commit);
+  });
+
+  renderExternals();
+
   function renderMembersList() {
     const list = document.getElementById('members-list');
     list.innerHTML = members.map(m => `
@@ -315,7 +386,7 @@ Router.register('add-expense', async (screen) => {
 
   function updateSharePreview() {
     const n = parseFloat(amountRaw) || 0;
-    const count = selectedMembers.size;
+    const count = selectedMembers.size + externalMembers.length;
     const preview = document.getElementById('share-preview');
     const perPerson = document.getElementById('per-person-amount');
 
@@ -349,7 +420,8 @@ Router.register('add-expense', async (screen) => {
         concept,
         category: selectedCategory,
         expense_date: expenseDate,
-        member_ids: Array.from(selectedMembers)
+        member_ids: Array.from(selectedMembers),
+        external_count: externalMembers.length
       });
 
       showToast('Gasto agregado', 'success');

@@ -106,7 +106,7 @@ Router.register('my-groups', async (screen) => {
       list.querySelectorAll('[data-leave]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const name = btn.dataset.leaveName;
-          if (!confirm(`¿Salir del grupo "${name}"?\nTus gastos quedarán en el historial.`)) return;
+          if (!confirm(`¿Salir del grupo "${name}"?\nEsto borrará tu cuenta y todos tus gastos de este grupo. Esta acción no se puede deshacer.`)) return;
           try {
             await api('DELETE', `/users/${AppState.userId}/groups/${btn.dataset.leave}`);
             if (AppState.groupId === btn.dataset.leave) clearGroup();
