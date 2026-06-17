@@ -76,13 +76,13 @@ Router.register('debts', async (screen) => {
                 <button class="btn btn-ghost btn-sm mp-btn"
                   data-cbu="${p.to_cbu ? escHtml(p.to_cbu) : ''}"
                   style="color:var(--mint);border-color:var(--mint);">
-                  Ir a MP 💸
+                  Pagar 💸
                 </button>
                 <button class="btn btn-accent btn-sm confirm-btn"
                   data-id="${p.id}"
                   data-amount="${p.amount}"
                   data-name="${escHtml(p.to_name)}">
-                  Pagar
+                  Ya pagué
                 </button>
               </div>
             </div>
@@ -140,10 +140,11 @@ Router.register('debts', async (screen) => {
     content.querySelectorAll('.mp-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const cbu = btn.dataset.cbu;
-        const url = cbu
-          ? `https://www.mercadopago.com.ar/transfer/${encodeURIComponent(cbu)}`
-          : 'https://www.mercadopago.com.ar/cobros';
-        window.open(url, '_blank');
+        if (!cbu) {
+          showToast('Este usuario no tiene alias de MP cargado', 'error');
+          return;
+        }
+        window.open(`mercadopago://send?alias=${encodeURIComponent(cbu)}`, '_blank');
       });
     });
 
@@ -172,7 +173,7 @@ Router.register('debts', async (screen) => {
         } catch (e) {
           showToast(e.message, 'error');
           btn.disabled = false;
-          btn.textContent = 'Pagar';
+          btn.textContent = 'Ya pagué';
         }
       });
     });
