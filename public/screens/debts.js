@@ -10,29 +10,52 @@ Router.register('debts', async (screen) => {
     </div>
   `;
 
-  try {
-    const { owes, owed } = await api('GET', `/users/${AppState.userId}/debts`);
-    renderDebts(owes, owed);
-  } catch (e) {
-    document.getElementById('debts-content').innerHTML =
-      `<div style="color:var(--orange);font-size:13px;padding:20px 0;">${e.message}</div>`;
+  let isFirstLoad = true;
+
+  async function load() {
+    try {
+      const [{ owes, owed }, history] = await Promise.all([
+        api('GET', `/users/${AppState.userId}/debts`),
+        api('GET', `/users/${AppState.userId}/payments-history`)
+      ]);
+      renderDebts(owes, owed, history);
+    } catch (e) {
+      // Only surface errors on the first load; silent refreshes keep the last good view
+      if (isFirstLoad) {
+        document.getElementById('debts-content').innerHTML =
+          `<div style="color:var(--orange);font-size:13px;padding:20px 0;">${e.message}</div>`;
+      }
+    } finally {
+      isFirstLoad = false;
+    }
   }
 
-  function renderDebts(owes, owed) {
+  await load();
+
+  // Silent auto-refresh every 30s; stop when the screen leaves the DOM
+  const _refresh = setInterval(load, 30000);
+  const _refreshParent = screen.parentElement;
+  if (_refreshParent) {
+    const _refreshObs = new MutationObserver(() => {
+      if (!screen.isConnected) { clearInterval(_refresh); _refreshObs.disconnect(); }
+    });
+    _refreshObs.observe(_refreshParent, { childList: true });
+  }
+
+  function renderDebts(owes, owed, history) {
     const content = document.getElementById('debts-content');
 
+    let html = '';
+
     if (!owes.length && !owed.length) {
-      content.innerHTML = `
+      html += `
         <div class="empty-state">
           <div style="opacity:.5;">${renderCatSprite({ color: AppState.userColor || 'orange', size: 120, animation: 'on_hind_legs' })}</div>
           <div class="empty-state-title">¡Todo en orden!</div>
           <div class="empty-state-sub">No tenés deudas pendientes. Tu gato está orgulloso.</div>
         </div>
       `;
-      return;
     }
-
-    let html = '';
 
     if (owes.length) {
       html += `<div class="section-label">Debés</div>`;
@@ -83,6 +106,31 @@ Router.register('debts', async (screen) => {
           <div class="pill-credit">${formatAmount(p.amount)}</div>
         </div>
       `).join('');
+      html += `</div>`;
+    }
+
+    if (history && history.length) {
+      html += `<div class="section-label">Historial</div>`;
+      html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;background:transparent;">`;
+      html += history.map(p => {
+        const iPaid = p.from_user === AppState.userId;
+        const otherName = iPaid ? p.to_name : p.from_name;
+        const otherColor = iPaid ? p.to_color : p.from_color;
+        const label = iPaid ? `Le pagaste a ${escHtml(otherName)}` : `${escHtml(otherName)} te pagó`;
+        return `
+          <div class="debt-item" style="background:transparent;">
+            <div class="avatar avatar-md" style="opacity:.4;">${renderCat({ color: otherColor, size: 40 })}</div>
+            <div class="debt-info">
+              <div class="debt-name" style="color:var(--text2);">${label}</div>
+              <div class="debt-days" style="color:var(--text3);">${formatDate(String(p.created_at).replace(' ', 'T'))}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="text-decoration:line-through;color:var(--text3);font-size:14px;">${formatAmount(p.amount)}</span>
+              <span style="color:var(--mint);font-weight:700;font-size:15px;">✓</span>
+            </div>
+          </div>
+        `;
+      }).join('');
       html += `</div>`;
     }
 

@@ -121,41 +121,64 @@ Router.register('feed', async (screen) => {
     });
   });
 
-  // Load data
-  try {
-    const [expenses, members, summary] = await Promise.all([
-      api('GET', `/expenses/group/${AppState.groupId}`),
-      api('GET', `/groups/${AppState.groupId}/members`),
-      api('GET', `/groups/${AppState.groupId}/summary`)
-    ]);
+  // Load data (also used by the silent auto-refresh below)
+  let isFirstLoad = true;
 
-    // Build balance map from summary
-    const balanceMap = {};
-    (summary?.members || []).forEach(m => { balanceMap[m.userId] = m.balance; });
+  async function loadData() {
+    try {
+      const [expenses, members, summary] = await Promise.all([
+        api('GET', `/expenses/group/${AppState.groupId}`),
+        api('GET', `/groups/${AppState.groupId}/members`),
+        api('GET', `/groups/${AppState.groupId}/summary`)
+      ]);
 
-    // Members row — avatar + name + balance
-    const membersRow = document.getElementById('members-row');
-    membersRow.innerHTML = members.map(m => {
-      const bal = balanceMap[m.id] || 0;
-      const balColor = bal > 0.01 ? 'var(--mint)' : bal < -0.01 ? 'var(--orange)' : 'var(--text2)';
-      const balLabel = Math.abs(bal) < 0.01 ? '✓' : (bal > 0 ? '+' : '') + formatAmount(bal);
-      return `
-        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
-          ${renderCat({ color: m.cat_color, size: 64 })}
-          <div style="font-size:10px;color:var(--text2);max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;">${m.nickname}</div>
-          <div style="font-size:10px;font-weight:700;color:${balColor};">${balLabel}</div>
-        </div>
-      `;
-    }).join('');
+      // Build balance map from summary
+      const balanceMap = {};
+      (summary?.members || []).forEach(m => { balanceMap[m.userId] = m.balance; });
 
-    renderExpenses(expenses, members);
-  } catch (e) {
-    document.getElementById('expenses-list').innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-title">Error al cargar gastos</div>
-        <div class="empty-state-sub">${e.message}</div>
-      </div>
-    `;
+      // Members row — avatar + name + balance
+      const membersRow = document.getElementById('members-row');
+      if (membersRow) {
+        membersRow.innerHTML = members.map(m => {
+          const bal = balanceMap[m.id] || 0;
+          const balColor = bal > 0.01 ? 'var(--mint)' : bal < -0.01 ? 'var(--orange)' : 'var(--text2)';
+          const balLabel = Math.abs(bal) < 0.01 ? '✓' : (bal > 0 ? '+' : '') + formatAmount(bal);
+          return `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
+              ${renderCat({ color: m.cat_color, size: 64 })}
+              <div style="font-size:10px;color:var(--text2);max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;">${m.nickname}</div>
+              <div style="font-size:10px;font-weight:700;color:${balColor};">${balLabel}</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      renderExpenses(expenses, members);
+    } catch (e) {
+      // Only surface errors on the first load; silent refreshes keep the last good view
+      if (isFirstLoad) {
+        document.getElementById('expenses-list').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-title">Error al cargar gastos</div>
+            <div class="empty-state-sub">${e.message}</div>
+          </div>
+        `;
+      }
+    } finally {
+      isFirstLoad = false;
+    }
+  }
+
+  await loadData();
+
+  // Silent auto-refresh every 30s; stop when the screen leaves the DOM
+  const _refresh = setInterval(loadData, 30000);
+  const _refreshParent = screen.parentElement;
+  if (_refreshParent) {
+    const _refreshObs = new MutationObserver(() => {
+      if (!screen.isConnected) { clearInterval(_refresh); _refreshObs.disconnect(); }
+    });
+    _refreshObs.observe(_refreshParent, { childList: true });
   }
 
   function renderExpenses(expenses, members) {

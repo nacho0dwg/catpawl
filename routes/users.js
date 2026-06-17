@@ -181,4 +181,24 @@ router.get('/:id/debts', (req, res) => {
   res.json({ owes, owed });
 });
 
+// GET /api/users/:id/payments-history — last 10 confirmed payments involving this user
+router.get('/:id/payments-history', (req, res) => {
+  const userId = req.params.id;
+
+  const history = db.prepare(`
+    SELECT p.*,
+      u1.nickname as from_name, u1.cat_color as from_color,
+      u2.nickname as to_name,   u2.cat_color as to_color
+    FROM payments p
+    JOIN users u1 ON p.from_user = u1.id
+    JOIN users u2 ON p.to_user = u2.id
+    WHERE (p.from_user = ? OR p.to_user = ?)
+      AND p.status = 'confirmed'
+    ORDER BY p.created_at DESC
+    LIMIT 10
+  `).all(userId, userId);
+
+  res.json(history);
+});
+
 module.exports = router;
