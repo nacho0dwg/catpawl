@@ -115,6 +115,18 @@ router.get('/:id/summary', (req, res) => {
     for (const uid of exp.members) balanceMap[uid] -= share;
   }
 
+  // Apply confirmed payments so the balance reflects what's already been settled
+  // (mirrors recalculatePayments in routes/expenses.js — keeps feed & debts in sync)
+  const confirmedPayments = db.prepare(`
+    SELECT * FROM payments
+    WHERE status = 'confirmed'
+      AND from_user IN (SELECT user_id FROM user_groups WHERE group_id = ?)
+  `).all(groupId);
+  for (const pay of confirmedPayments) {
+    if (balanceMap[pay.from_user] !== undefined) balanceMap[pay.from_user] += pay.amount;
+    if (balanceMap[pay.to_user]   !== undefined) balanceMap[pay.to_user]   -= pay.amount;
+  }
+
   const balances = members.map(m => ({
     userId: m.id,
     nickname: m.nickname,
