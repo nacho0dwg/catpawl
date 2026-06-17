@@ -141,7 +141,7 @@ Router.register('debts', async (screen) => {
       btn.addEventListener('click', () => {
         const cbu = btn.dataset.cbu;
         const url = cbu
-          ? `https://link.mercadopago.com.ar/${encodeURIComponent(cbu)}`
+          ? `https://mpago.la/pay/${encodeURIComponent(cbu)}`
           : 'https://www.mercadopago.com.ar/cobros';
         window.open(url, '_blank');
       });
