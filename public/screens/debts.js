@@ -73,6 +73,11 @@ Router.register('debts', async (screen) => {
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
               <div class="pill-debt">${formatAmount(p.amount)}</div>
               <div style="display:flex;gap:6px;">
+                ${p.to_cbu ? `
+                <button class="btn btn-ghost btn-sm copy-alias-btn"
+                  data-cbu="${escHtml(p.to_cbu)}">
+                  Copiar alias
+                </button>` : ''}
                 <button class="btn btn-ghost btn-sm mp-btn"
                   data-cbu="${p.to_cbu ? escHtml(p.to_cbu) : ''}"
                   style="color:var(--mint);border-color:var(--mint);">
@@ -145,6 +150,15 @@ Router.register('debts', async (screen) => {
           return;
         }
         window.open(`mercadopago://send?alias=${encodeURIComponent(cbu)}`, '_blank');
+      });
+    });
+
+    // "Copiar alias" buttons — copy the creditor's MP alias to the clipboard
+    content.querySelectorAll('.copy-alias-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cbu = btn.dataset.cbu;
+        navigator.clipboard.writeText(cbu);
+        showToast(`Alias copiado: ${cbu}`, 'success');
       });
     });
 
