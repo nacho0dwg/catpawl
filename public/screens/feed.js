@@ -126,23 +126,48 @@ Router.register('feed', async (screen) => {
 
   async function loadData() {
     try {
-      const [expenses, members, summary] = await Promise.all([
+      const [expenses, members, summary, debts] = await Promise.all([
         api('GET', `/expenses/group/${AppState.groupId}`),
         api('GET', `/groups/${AppState.groupId}/members`),
-        api('GET', `/groups/${AppState.groupId}/summary`)
+        api('GET', `/groups/${AppState.groupId}/summary`),
+        api('GET', `/users/${AppState.userId}/debts`)
       ]);
 
-      // Build balance map from summary
+      // Other members' balances come from the accounting summary (from expenses)
       const balanceMap = {};
       (summary?.members || []).forEach(m => { balanceMap[m.userId] = m.balance; });
+
+      // The logged-in user's balance comes from actual PENDING payments, so it
+      // drops as soon as a payment is confirmed (the pending row disappears).
+      const myOwes = (debts?.owes || []).reduce((s, p) => s + p.amount, 0);
+      const myOwed = (debts?.owed || []).reduce((s, p) => s + p.amount, 0);
+      const myNet = myOwed - myOwes;
 
       // Members row — avatar + name + balance
       const membersRow = document.getElementById('members-row');
       if (membersRow) {
         membersRow.innerHTML = members.map(m => {
-          const bal = balanceMap[m.id] || 0;
-          const balColor = bal > 0.01 ? 'var(--mint)' : bal < -0.01 ? 'var(--orange)' : 'var(--text2)';
-          const balLabel = Math.abs(bal) < 0.01 ? '✓' : (bal > 0 ? '+' : '') + formatAmount(bal);
+          let balColor, balLabel;
+
+          if (m.id === AppState.userId) {
+            // Logged-in user: derive from pending payments (owed = +, owes = -)
+            if (myNet > 0.01) {
+              balColor = 'var(--mint)';
+              balLabel = '+' + formatAmount(myNet);
+            } else if (myNet < -0.01) {
+              balColor = 'var(--orange)';
+              balLabel = '-' + formatAmount(Math.abs(myNet));
+            } else {
+              balColor = 'var(--text2)';
+              balLabel = formatAmount(0);
+            }
+          } else {
+            // Other members: keep using the summary balance
+            const bal = balanceMap[m.id] || 0;
+            balColor = bal > 0.01 ? 'var(--mint)' : bal < -0.01 ? 'var(--orange)' : 'var(--text2)';
+            balLabel = Math.abs(bal) < 0.01 ? '✓' : (bal > 0 ? '+' : '') + formatAmount(bal);
+          }
+
           return `
             <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;">
               ${renderCat({ color: m.cat_color, size: 64 })}
