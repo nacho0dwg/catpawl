@@ -163,7 +163,7 @@ router.get('/:id/debts', (req, res) => {
   const userId = req.params.id;
 
   const owes = db.prepare(`
-    SELECT p.*, u.nickname as to_name, u.cat_color as to_color, u.alias as to_alias, u.cbu as to_cbu
+    SELECT p.*, u.nickname as to_name, u.cat_color as to_color, u.cbu as to_cbu
     FROM payments p
     JOIN users u ON p.to_user = u.id
     WHERE p.from_user = ? AND p.status = 'pending'

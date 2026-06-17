@@ -44,17 +44,12 @@ Router.register('profile', async (screen) => {
       </div>
 
       <div class="section-label">Mi cuenta</div>
-      <div class="input-group" style="margin-bottom:14px;">
-        <label class="input-label" for="profile-alias">Alias de MP</label>
-        <input class="input" id="profile-alias" type="text" placeholder="Ej: nacho.mp" maxlength="30"
-          autocomplete="off" autocorrect="off" spellcheck="false" style="text-transform:lowercase;"
-          value="${user.alias ? escHtml(user.alias) : ''}" />
-      </div>
       <div class="input-group" style="margin-bottom:28px;">
-        <label class="input-label" for="profile-cbu">CBU / CVU</label>
-        <input class="input" id="profile-cbu" type="text" placeholder="22 dígitos" maxlength="30"
-          inputmode="numeric" autocomplete="off"
+        <label class="input-label" for="profile-cbu">Alias de MP</label>
+        <input class="input" id="profile-cbu" type="text" placeholder="Ej: nacho.mp o CBU/CVU" maxlength="30"
+          autocomplete="off" autocorrect="off" spellcheck="false"
           value="${user.cbu ? escHtml(user.cbu) : ''}" />
+        <div style="font-size:11px;color:var(--text2);margin-top:6px;">Tu alias de Mercado Pago o CBU/CVU para recibir transferencias.</div>
       </div>
 
       <button class="btn btn-accent" id="btn-save-profile" style="width:100%;">Guardar cambios</button>
@@ -83,7 +78,6 @@ Router.register('profile', async (screen) => {
   }
 
   async function save() {
-    const alias = document.getElementById('profile-alias').value.trim().toLowerCase();
     const cbu = document.getElementById('profile-cbu').value.trim();
 
     const btn = document.getElementById('btn-save-profile');
@@ -93,7 +87,6 @@ Router.register('profile', async (screen) => {
     try {
       const updated = await api('PATCH', `/users/${AppState.userId}`, {
         cat_color: selectedColor,
-        alias: alias || null,
         cbu: cbu || null
       });
 
@@ -108,10 +101,7 @@ Router.register('profile', async (screen) => {
       btn.disabled = false;
       btn.textContent = 'Guardar cambios';
     } catch (e) {
-      const msg = e.message === 'alias already taken'
-        ? 'Ese alias ya está tomado, elegí otro'
-        : e.message || 'Error al guardar';
-      showToast(msg, 'error');
+      showToast(e.message || 'Error al guardar', 'error');
       btn.disabled = false;
       btn.textContent = 'Guardar cambios';
     }

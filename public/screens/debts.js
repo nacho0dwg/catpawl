@@ -51,7 +51,7 @@ Router.register('debts', async (screen) => {
               <div class="pill-debt">${formatAmount(p.amount)}</div>
               <div style="display:flex;gap:6px;">
                 <button class="btn btn-ghost btn-sm mp-btn"
-                  data-alias="${p.to_alias ? escHtml(p.to_alias) : ''}"
+                  data-cbu="${p.to_cbu ? escHtml(p.to_cbu) : ''}"
                   style="color:var(--mint);border-color:var(--mint);">
                   Ir a MP 💸
                 </button>
@@ -91,9 +91,9 @@ Router.register('debts', async (screen) => {
     // "Ir a MP" buttons — open Mercado Pago, prefilling the creditor's alias when available
     content.querySelectorAll('.mp-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const alias = btn.dataset.alias;
-        const url = alias
-          ? `https://link.mercadopago.com.ar/${encodeURIComponent(alias)}`
+        const cbu = btn.dataset.cbu;
+        const url = cbu
+          ? `https://link.mercadopago.com.ar/${encodeURIComponent(cbu)}`
           : 'https://www.mercadopago.com.ar/cobros';
         window.open(url, '_blank');
       });
