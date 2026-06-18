@@ -65,19 +65,19 @@ Router.register('store', async (screen) => {
     showToast(e.message, 'error');
   }
 
-  function renderCatWithEquipment(color, size, hat, accessory) {
+  function renderCatWithEquipment(color, size, hat, accessory, animation = 'meow_stand') {
     const pngHat = HAT_PNGS.has(hat) ? hat : null;
     const pngAcc = PNG_ACCESSORIES.has(accessory) ? accessory : null;
 
     // PNG layers: hat first (underneath), then accessory on top
     const layers = [pngHat, pngAcc].filter(Boolean);
     if (layers.length) {
-      return renderCatSpriteMulti({ color, animation: 'meow_sit', size, accessories: layers });
+      return renderCatSpriteMulti({ color, animation, size, accessories: layers });
     }
 
     // Patch: emoji overlay on cat face (only remaining non-PNG item)
     if (accessory === 'patch') {
-      const catHtml = renderCatSprite({ color, animation: 'meow_sit', size });
+      const catHtml = renderCatSprite({ color, animation, size });
       const fs = Math.round(size * 0.36);
       return `<div style="position:relative;width:${size}px;height:${size}px;display:inline-block;flex-shrink:0;">
         ${catHtml}
@@ -85,7 +85,7 @@ Router.register('store', async (screen) => {
       </div>`;
     }
 
-    return renderCatSprite({ color, animation: 'meow_sit', size });
+    return renderCatSprite({ color, animation, size });
   }
 
   function renderStore() {
@@ -301,7 +301,10 @@ Router.register('store', async (screen) => {
           saveToStorage();
           closeItemModal();
           showToast(`¡${item.name} equipado!`, 'success');
-          renderStore();
+          // Show scratch animation for 2 seconds
+          document.getElementById('cat-preview-store').innerHTML =
+            renderCatSprite({ color: user.cat_color, animation: 'scratch_r', size: 120 });
+          setTimeout(() => renderStore(), 2000);
         } catch (err) {
           showToast(err.message, 'error');
           buyBtn.disabled = false;

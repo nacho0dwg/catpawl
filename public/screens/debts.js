@@ -49,10 +49,20 @@ Router.register('debts', async (screen) => {
     let html = '';
 
     if (!owes.length && !owed.length) {
+      // Check if there's only history (no pending debts)
+      const hasOnlyHistory = history && history.length > 0;
+      const catAnim = hasOnlyHistory ? 'yawn_sit' : 'wash_lie';
       html += `
         <div class="empty-state">
-          <img src="/images/mate.gif" style="width:120px;height:120px;" alt="mate">
+          ${renderCatSprite({ color: AppState.userColor || 'orange', size: 120, animation: catAnim })}
           <div style="font-size:18px;color:var(--text2);margin-top:12px;text-align:center;">Todo al día 🧉</div>
+        </div>
+      `;
+    } else {
+      // Show paw_att_right cat when there are pending debts
+      html += `
+        <div style="text-align:center;margin-bottom:16px;">
+          ${renderCatSprite({ color: AppState.userColor || 'orange', size: 80, animation: 'paw_att_right' })}
         </div>
       `;
     }

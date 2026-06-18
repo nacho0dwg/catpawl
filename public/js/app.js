@@ -58,8 +58,14 @@ function showToast(message, type = 'info', durationMs = 3000) {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
 
-  const icons = { success: '✓', error: '✕', info: '◆' };
-  toast.innerHTML = `<span style="font-weight:700;font-size:13px;">${icons[type] ?? '◆'}</span> ${message}`;
+  // Cat animation based on toast type
+  const catAnim = type === 'success' ? 'meow_sit2' : type === 'error' ? 'hiss_r' : 'meow_sit';
+  const catColor = (typeof AppState !== 'undefined' && AppState.userColor) || 'orange';
+  const catHtml = typeof renderCatSprite === 'function'
+    ? renderCatSprite({ color: catColor, animation: catAnim, size: 24 })
+    : '';
+
+  toast.innerHTML = `<span style="display:inline-flex;align-items:center;margin-right:6px;">${catHtml}</span> ${message}`;
 
   container.appendChild(toast);
 

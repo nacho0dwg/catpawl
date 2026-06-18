@@ -26,21 +26,22 @@ const CAT_KEY_ALIASES = {
 };
 
 const CAT_ANIM_FILES = {
-  meow_sit:     'meow_sit.gif',
-  meow_sit2:    'meow_sit2.gif',
-  meow_lie:     'meow_lie.gif',
-  meow_stand:   'meow_stand.gif',
-  yawn_sit:     'yawn_sit.gif',
-  yawn_lie:     'yawn_lie.gif',
-  wash_sit:     'wash_sit.gif',
-  wash_lie:     'wash_lie.gif',
-  on_hind_legs: 'on_hind_legs.gif',
-  hiss_r:       'hiss_r.gif',
-  hiss_l:       'hiss_l.gif',
-  scratch_r:    'scratch_r.gif',
-  scratch_l:    'scratch_l.gif',
-  sleep1_l:     'sleep1_l.gif',
-  sleep1_r:     'sleep1_r.gif',
+  meow_sit:      'meow_sit.gif',
+  meow_sit2:     'meow_sit2.gif',
+  meow_lie:      'meow_lie.gif',
+  meow_stand:    'meow_stand.gif',
+  yawn_sit:      'yawn_sit.gif',
+  yawn_lie:      'yawn_lie.gif',
+  wash_sit:      'wash_sit.gif',
+  wash_lie:      'wash_lie.gif',
+  on_hind_legs:  'on_hind_legs.gif',
+  hiss_r:        'hiss_r.gif',
+  hiss_l:        'hiss_l.gif',
+  scratch_r:     'scratch_r.gif',
+  scratch_l:     'scratch_l.gif',
+  sleep1_l:      'sleep1_l.gif',
+  sleep1_r:      'sleep1_r.gif',
+  paw_att_right: 'paw_att_right.gif',
 };
 
 // Sprite sheet positions for accessory overlay compositing.

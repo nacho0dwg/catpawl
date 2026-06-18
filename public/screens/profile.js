@@ -72,9 +72,9 @@ Router.register('profile', async (screen) => {
     document.getElementById('btn-save-profile').addEventListener('click', save);
   }
 
-  function updateAvatar() {
+  function updateAvatar(animation = 'meow_sit') {
     document.getElementById('profile-avatar').innerHTML =
-      renderCatSprite({ color: selectedColor, animation: 'wash_sit', size: 80 });
+      renderCatSprite({ color: selectedColor, animation, size: 80 });
   }
 
   async function save() {
@@ -96,6 +96,10 @@ Router.register('profile', async (screen) => {
         AppState.userColor = updated.cat_color;
       }
       saveToStorage();
+
+      // Show on_hind_legs animation for 2 seconds on success
+      updateAvatar('on_hind_legs');
+      setTimeout(() => updateAvatar('meow_sit'), 2000);
 
       showToast('Perfil actualizado', 'success');
       btn.disabled = false;

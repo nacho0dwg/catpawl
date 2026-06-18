@@ -189,6 +189,25 @@ Router.register('feed', async (screen) => {
       const myOwed = (debts?.owed || []).reduce((s, p) => s + p.amount, 0);
       const myNet = myOwed - myOwes;
 
+      // Update parallax cat animation based on financial state
+      let catAnim = 'wash_sit'; // default: all good
+      const hasRecentExpenses = expenses.length > 0 && (() => {
+        const lastExpDate = new Date(expenses[0].expense_date + 'T12:00:00');
+        const daysSince = Math.floor((Date.now() - lastExpDate) / 86400000);
+        return daysSince < 7;
+      })();
+      if (!hasRecentExpenses && expenses.length > 0) {
+        catAnim = 'sleep1_r'; // no activity in 7 days
+      } else if (myOwes > 0.01) {
+        catAnim = 'on_hind_legs'; // you owe money
+      } else if (myOwed > 0.01) {
+        catAnim = 'hiss_r'; // someone owes you
+      }
+      const bgCat = document.getElementById('parallax-cat');
+      if (bgCat) {
+        bgCat.innerHTML = renderCatSprite({ color: AppState.userColor || 'orange', size: 260, animation: catAnim });
+      }
+
       // Members row — avatar + name + balance
       const membersRow = document.getElementById('members-row');
       if (membersRow) {
