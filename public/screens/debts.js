@@ -14,11 +14,12 @@ Router.register('debts', async (screen) => {
 
   async function load() {
     try {
-      const [{ owes, owed }, history] = await Promise.all([
+      const [{ owes, owed }, history, externals] = await Promise.all([
         api('GET', `/users/${AppState.userId}/debts`),
-        api('GET', `/users/${AppState.userId}/payments-history`)
+        api('GET', `/users/${AppState.userId}/payments-history`),
+        api('GET', `/expenses/group/${AppState.groupId}/with-externals?userId=${AppState.userId}`)
       ]);
-      renderDebts(owes, owed, history);
+      renderDebts(owes, owed, history, externals);
     } catch (e) {
       // Only surface errors on the first load; silent refreshes keep the last good view
       if (isFirstLoad) {
@@ -42,7 +43,7 @@ Router.register('debts', async (screen) => {
     _refreshObs.observe(_refreshParent, { childList: true });
   }
 
-  function renderDebts(owes, owed, history) {
+  function renderDebts(owes, owed, history, externals) {
     const content = document.getElementById('debts-content');
 
     let html = '';
@@ -109,6 +110,22 @@ Router.register('debts', async (screen) => {
             <div class="debt-days">${formatDaysSince(p.created_at) === 0 ? 'Hoy' : `hace ${formatDaysSince(p.created_at)} día${formatDaysSince(p.created_at) !== 1 ? 's' : ''}`}</div>
           </div>
           <div class="pill-credit">${formatAmount(p.amount)}</div>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+
+    if (externals && externals.length) {
+      html += `<div class="section-label">Externos</div>`;
+      html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">`;
+      html += externals.map(exp => `
+        <div class="debt-item">
+          <div style="font-size:24px;width:40px;text-align:center;">👤</div>
+          <div class="debt-info">
+            <div class="debt-name">${escHtml(exp.concept)}</div>
+            <div class="debt-days">${exp.external_count} persona${exp.external_count !== 1 ? 's' : ''} externa${exp.external_count !== 1 ? 's' : ''} te debe${exp.external_count !== 1 ? 'n' : ''} ${formatAmount(exp.external_share)} c/u</div>
+          </div>
+          <div class="pill-debt" style="background:var(--orange);color:#fff;">${formatAmount(exp.total_external_debt)}</div>
         </div>
       `).join('');
       html += `</div>`;

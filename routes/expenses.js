@@ -176,5 +176,40 @@ router.post('/payments/:id/confirm', (req, res) => {
   res.json({ ok: true, credits_earned: earned, total_credits: user.credits });
 });
 
+// GET /api/expenses/group/:groupId/with-externals — expenses with external participants
+router.get('/group/:groupId/with-externals', (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ error: 'userId query param required' });
+
+  const expenses = db.prepare(`
+    SELECT e.*, u.nickname as payer_name, u.cat_color as payer_color
+    FROM expenses e
+    JOIN users u ON e.payer_id = u.id
+    WHERE e.group_id = ? AND e.payer_id = ? AND e.external_count > 0
+    ORDER BY e.expense_date DESC, e.created_at DESC
+  `).all(req.params.groupId, userId);
+
+  const getMembersStmt = db.prepare(`
+    SELECT em.user_id FROM expense_members em WHERE em.expense_id = ?
+  `);
+
+  const result = expenses.map(e => {
+    const memberCount = getMembersStmt.all(e.id).length;
+    const totalParticipants = memberCount + e.external_count;
+    const externalShare = Math.round((e.amount / totalParticipants) * 100) / 100;
+    return {
+      id: e.id,
+      concept: e.concept,
+      amount: e.amount,
+      external_count: e.external_count,
+      expense_date: e.expense_date,
+      external_share: externalShare,
+      total_external_debt: Math.round(externalShare * e.external_count * 100) / 100
+    };
+  });
+
+  res.json(result);
+});
+
 router.recalculatePayments = recalculatePayments;
 module.exports = router;

@@ -34,6 +34,17 @@ Router.register('feed', async (screen) => {
                   Mis grupos
                 </button>
                 <div style="height:1px;background:var(--border2);margin:0 12px;"></div>
+                <button id="btn-new-code-dd" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;font-size:13px;font-weight:600;color:var(--text);background:none;border:none;cursor:pointer;text-align:left;">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M11.5 1.5L12.5 2.5M12.5 2.5L11.5 3.5M12.5 2.5H9.5C8.4 2.5 7.5 3.4 7.5 4.5V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="1" y="5" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                    <circle cx="4" cy="9" r="1" fill="currentColor"/>
+                    <circle cx="7" cy="9" r="1" fill="currentColor"/>
+                    <circle cx="10" cy="9" r="1" fill="currentColor"/>
+                  </svg>
+                  Nuevo código
+                </button>
+                <div style="height:1px;background:var(--border2);margin:0 12px;"></div>
                 <button id="btn-logout-dd" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;font-size:13px;font-weight:600;color:#ff5714;background:none;border:none;cursor:pointer;text-align:left;">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                     <path d="M5 1H2C1.45 1 1 1.45 1 2V12C1 12.55 1.45 13 2 13H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -103,6 +114,41 @@ Router.register('feed', async (screen) => {
     Router.navigate('profile'); // keep the bottom nav visible so the user can return
   });
   document.getElementById('btn-my-groups-dd').addEventListener('click', goToMyGroups);
+  document.getElementById('btn-new-code-dd').addEventListener('click', async () => {
+    closeDropdown();
+    if (!confirm('¿Generar un nuevo código? El código actual dejará de funcionar.')) return;
+    try {
+      const result = await api('POST', `/groups/${AppState.groupId}/regenerate-code`);
+      AppState.groupCode = result.code;
+      saveToStorage();
+      document.getElementById('code-display').textContent = result.code;
+      showNewCodeModal(result.code);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  function showNewCodeModal(code) {
+    const overlay = document.createElement('div');
+    overlay.id = 'new-code-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);';
+    overlay.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:28px 24px;max-width:320px;text-align:center;">
+        <div style="font-size:14px;color:var(--text2);margin-bottom:8px;">Nuevo código de invitación</div>
+        <div style="font-size:32px;font-weight:800;letter-spacing:2px;color:var(--accent);margin-bottom:20px;">${code}</div>
+        <button id="copy-new-code-btn" class="btn btn-accent" style="width:100%;">Copiar código</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('copy-new-code-btn').addEventListener('click', () => {
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('Código copiado', 'success');
+        overlay.remove();
+      });
+    });
+  }
+
   document.getElementById('btn-logout-dd').addEventListener('click', () => {
     closeDropdown();
     if (confirm('¿Cerrar sesión y cambiar de usuario?')) {
@@ -240,6 +286,19 @@ Router.register('feed', async (screen) => {
       return renderExpenseCard(item.data);
     }).join('');
 
+    // Expand/collapse handler
+    list.querySelectorAll('.expand-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const details = list.querySelector(`[data-details-id="${id}"]`);
+        if (!details) return;
+        const isExpanded = details.style.display !== 'none';
+        details.style.display = isExpanded ? 'none' : 'block';
+        btn.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(90deg)';
+      });
+    });
+
     // Delete handler
     list.querySelectorAll('.delete-expense-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -270,23 +329,23 @@ Router.register('feed', async (screen) => {
     const payerHex = (CAT_PALETTES[exp.payer_color] || CAT_PALETTES.orange).body;
 
     return `
-      <div class="expense-card" style="border-left: 2.5px solid ${payerHex}; padding-left: 14px;">
-        <div class="avatar avatar-md">${renderCat({ color: exp.payer_color, size: 40 })}</div>
-        <div style="min-width:0;">
-          <div class="expense-concept">${escHtml(exp.concept)}</div>
-          <div class="expense-meta">
-            <span class="badge badge-neutral">${getCategoryIcon(exp.category, 20)}${getCategoryLabel(exp.category)}</span>
-            <span>${exp.payer_name}</span>
-            <span style="color:var(--text3);">·</span>
-            <span>${formatDate(exp.expense_date + 'T12:00:00')}</span>
+      <div class="expense-card" style="border-left: 2.5px solid ${payerHex}; padding-left: 14px; flex-wrap: wrap;" data-expense-id="${exp.id}">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+          <span style="font-size:22px;">${getCategoryIcon(exp.category, 22)}</span>
+          <div style="min-width:0;">
+            <div class="expense-concept">${escHtml(exp.concept)}</div>
+            <div style="font-size:11px;color:var(--text2);">${exp.payer_name}</div>
           </div>
-          <div style="margin-top:6px;display:flex;gap:4px;" class="avatar-stack">${memberAvatars}</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+        <div style="display:flex;align-items:center;gap:8px;">
           <div class="expense-amount">${formatAmount(exp.amount)}</div>
-          ${myShare ? `<div class="expense-your-share">te toca ${myShare}</div>` : ''}
-          ${isPayer ? `<button class="delete-expense-btn" data-id="${exp.id}"
-            style="font-size:11px;color:var(--text3);margin-top:4px;padding:2px 0;">eliminar</button>` : ''}
+          <button class="expand-btn" data-id="${exp.id}" style="background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;padding:4px;transition:transform 0.2s;">›</button>
+        </div>
+        <div class="expense-details" data-details-id="${exp.id}" style="display:none;width:100%;padding-top:10px;margin-top:10px;border-top:1px solid var(--border2);">
+          ${myShare ? `<div style="font-size:12px;color:var(--accent);margin-bottom:6px;">Te toca ${myShare}</div>` : ''}
+          <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">${formatDate(exp.expense_date + 'T12:00:00')}</div>
+          <div style="display:flex;gap:4px;margin-bottom:8px;" class="avatar-stack">${memberAvatars}</div>
+          ${isPayer ? `<button class="delete-expense-btn" data-id="${exp.id}" style="font-size:11px;color:var(--text3);padding:2px 0;">eliminar</button>` : ''}
         </div>
       </div>
     `;
