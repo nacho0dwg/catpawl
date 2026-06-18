@@ -182,6 +182,9 @@ router.post('/payments/:id/confirm', (req, res) => {
     db.prepare('UPDATE users SET credits = MAX(0, credits + ?) WHERE id = ?').run(earned, payment.from_user);
   }
 
+  // Award 5 credits to the payee (to_user) for receiving a confirmed payment
+  db.prepare('UPDATE users SET credits = credits + 5 WHERE id = ?').run(payment.to_user);
+
   const user = db.prepare('SELECT credits FROM users WHERE id = ?').get(payment.from_user);
   res.json({ ok: true, credits_earned: earned, total_credits: user.credits });
 });
