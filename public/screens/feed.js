@@ -329,19 +329,17 @@ Router.register('feed', async (screen) => {
     const payerHex = (CAT_PALETTES[exp.payer_color] || CAT_PALETTES.orange).body;
 
     return `
-      <div class="expense-card" style="border-left: 2.5px solid ${payerHex}; padding-left: 14px; flex-wrap: wrap;" data-expense-id="${exp.id}">
-        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-          <span style="font-size:22px;">${getCategoryIcon(exp.category, 22)}</span>
-          <div style="min-width:0;">
+      <div class="expense-card" style="border-left: 2.5px solid ${payerHex}; padding-left: 14px; display:block;" data-expense-id="${exp.id}">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;flex-shrink:0;">${getCategoryIcon(exp.category, 22)}</span>
+          <div style="flex:1;min-width:0;">
             <div class="expense-concept">${escHtml(exp.concept)}</div>
             <div style="font-size:11px;color:var(--text2);">${exp.payer_name}</div>
           </div>
+          <div class="expense-amount" style="flex-shrink:0;">${formatAmount(exp.amount)}</div>
+          <button class="expand-btn" data-id="${exp.id}" style="background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;padding:4px;transition:transform 0.2s;flex-shrink:0;">›</button>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="expense-amount">${formatAmount(exp.amount)}</div>
-          <button class="expand-btn" data-id="${exp.id}" style="background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;padding:4px;transition:transform 0.2s;">›</button>
-        </div>
-        <div class="expense-details" data-details-id="${exp.id}" style="display:none;width:100%;padding-top:10px;margin-top:10px;border-top:1px solid var(--border2);">
+        <div class="expense-details" data-details-id="${exp.id}" style="display:none;padding-top:10px;margin-top:10px;border-top:1px solid var(--border2);">
           ${myShare ? `<div style="font-size:12px;color:var(--accent);margin-bottom:6px;">Te toca ${myShare}</div>` : ''}
           <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">${formatDate(exp.expense_date + 'T12:00:00')}</div>
           <div style="display:flex;gap:4px;margin-bottom:8px;" class="avatar-stack">${memberAvatars}</div>

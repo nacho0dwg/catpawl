@@ -141,6 +141,16 @@ const db = {
       // column already exists — ignore
     }
 
+    // Migrate: create expense_externals table for storing external participant names
+    _db.run(`
+      CREATE TABLE IF NOT EXISTS expense_externals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        expense_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE
+      )
+    `);
+
     saveDb();
     console.log('[db] ready');
   },

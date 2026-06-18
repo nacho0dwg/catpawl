@@ -92,7 +92,7 @@ function recalculatePayments(groupId) {
 
 // POST /api/expenses — add expense
 router.post('/', (req, res) => {
-  const { group_id, payer_id, amount, concept, category, expense_date, member_ids, external_count } = req.body;
+  const { group_id, payer_id, amount, concept, category, expense_date, member_ids, external_count, external_names } = req.body;
 
   if (!group_id || !payer_id || !amount || !concept || !member_ids?.length) {
     return res.status(400).json({ error: 'group_id, payer_id, amount, concept and member_ids required' });
@@ -109,6 +109,16 @@ router.post('/', (req, res) => {
 
   const insertMember = db.prepare('INSERT INTO expense_members (expense_id, user_id) VALUES (?, ?)');
   for (const uid of member_ids) insertMember.run(id, uid);
+
+  // Save external participant names
+  if (external_names && Array.isArray(external_names)) {
+    const insertExternal = db.prepare('INSERT INTO expense_externals (expense_id, name) VALUES (?, ?)');
+    for (const name of external_names) {
+      if (name && typeof name === 'string' && name.trim()) {
+        insertExternal.run(id, name.trim());
+      }
+    }
+  }
 
   recalculatePayments(group_id);
 
@@ -192,21 +202,28 @@ router.get('/group/:groupId/with-externals', (req, res) => {
   const getMembersStmt = db.prepare(`
     SELECT em.user_id FROM expense_members em WHERE em.expense_id = ?
   `);
+  const getExternalsStmt = db.prepare(`
+    SELECT name FROM expense_externals WHERE expense_id = ?
+  `);
 
-  const result = expenses.map(e => {
+  const result = [];
+  for (const e of expenses) {
     const memberCount = getMembersStmt.all(e.id).length;
     const totalParticipants = memberCount + e.external_count;
     const externalShare = Math.round((e.amount / totalParticipants) * 100) / 100;
-    return {
-      id: e.id,
-      concept: e.concept,
-      amount: e.amount,
-      external_count: e.external_count,
-      expense_date: e.expense_date,
-      external_share: externalShare,
-      total_external_debt: Math.round(externalShare * e.external_count * 100) / 100
-    };
-  });
+    const externalNames = getExternalsStmt.all(e.id).map(r => r.name);
+
+    // Return one item per external person
+    for (let i = 0; i < e.external_count; i++) {
+      result.push({
+        expense_id: e.id,
+        concept: e.concept,
+        expense_date: e.expense_date,
+        external_name: externalNames[i] || `Externo ${i + 1}`,
+        external_share: externalShare
+      });
+    }
+  }
 
   res.json(result);
 });

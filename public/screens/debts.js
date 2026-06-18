@@ -118,14 +118,14 @@ Router.register('debts', async (screen) => {
     if (externals && externals.length) {
       html += `<div class="section-label">Externos</div>`;
       html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">`;
-      html += externals.map(exp => `
+      html += externals.map(ext => `
         <div class="debt-item">
           <div style="font-size:24px;width:40px;text-align:center;">👤</div>
           <div class="debt-info">
-            <div class="debt-name">${escHtml(exp.concept)}</div>
-            <div class="debt-days">${exp.external_count} persona${exp.external_count !== 1 ? 's' : ''} externa${exp.external_count !== 1 ? 's' : ''} te debe${exp.external_count !== 1 ? 'n' : ''} ${formatAmount(exp.external_share)} c/u</div>
+            <div class="debt-name">${escHtml(ext.external_name)}</div>
+            <div class="debt-days">${escHtml(ext.concept)}</div>
           </div>
-          <div class="pill-debt" style="background:var(--orange);color:#fff;">${formatAmount(exp.total_external_debt)}</div>
+          <div class="pill-debt" style="background:var(--orange);color:#fff;">${formatAmount(ext.external_share)}</div>
         </div>
       `).join('');
       html += `</div>`;

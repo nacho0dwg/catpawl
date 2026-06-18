@@ -421,7 +421,8 @@ Router.register('add-expense', async (screen) => {
         category: selectedCategory,
         expense_date: expenseDate,
         member_ids: Array.from(selectedMembers),
-        external_count: externalMembers.length
+        external_count: externalMembers.length,
+        external_names: externalMembers.map(e => e.name)
       });
 
       showToast('Gasto agregado', 'success');
