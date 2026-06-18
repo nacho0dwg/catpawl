@@ -51,7 +51,7 @@ Router.register('debts', async (screen) => {
     if (!owes.length && !owed.length) {
       html += `
         <div class="empty-state">
-          <img src="https://media.tenor.com/DCm4DNbMlJMAAAAd/emoji-mate.gif" alt="mate" style="width:150px;height:150px;object-fit:contain;" onerror="this.outerHTML='<iframe src=\\'https://tenor.com/embed/5995996843990285223\\' width=\\'150\\' height=\\'150\\' frameborder=\\'0\\'></iframe>'">
+          <img src="https://media.tenor.com/DCm4DNbMlJMAAAAC/emoji-mate.gif" alt="mate" style="width:150px;height:150px;object-fit:contain;border-radius:12px;">
           <div style="font-size:18px;color:var(--text2);margin-top:12px;text-align:center;">Todo al día 🧉</div>
         </div>
       `;
