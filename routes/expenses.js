@@ -45,20 +45,6 @@ function recalculatePayments(groupId) {
     for (const uid of exp.members) balanceMap[uid] -= share;
   }
 
-  // Apply already-confirmed payments so settled debts don't reappear as pending.
-  // A confirmed payment moves both parties' balances toward zero:
-  //   payer (from_user) already paid  → debt shrinks  → balance += amount
-  //   payee (to_user)   already got paid → owed shrinks → balance -= amount
-  const confirmedPayments = db.prepare(`
-    SELECT * FROM payments
-    WHERE status = 'confirmed'
-      AND from_user IN (SELECT user_id FROM user_groups WHERE group_id = ?)
-  `).all(groupId);
-  for (const pay of confirmedPayments) {
-    if (balanceMap[pay.from_user] !== undefined) balanceMap[pay.from_user] += pay.amount;
-    if (balanceMap[pay.to_user]   !== undefined) balanceMap[pay.to_user]   -= pay.amount;
-  }
-
   const eps = 0.01;
   const creditors = members.filter(m => balanceMap[m.id] > eps).map(m => ({ id: m.id, bal: balanceMap[m.id] }));
   const debtors = members.filter(m => balanceMap[m.id] < -eps).map(m => ({ id: m.id, bal: balanceMap[m.id] }));
