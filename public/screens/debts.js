@@ -118,42 +118,68 @@ Router.register('debts', async (screen) => {
       const pendingExternals = externals.filter(e => !e.paid);
       const paidExternals = externals.filter(e => e.paid);
 
-      if (pendingExternals.length) {
+      // Group pending externals by name
+      const pendingGrouped = {};
+      for (const ext of pendingExternals) {
+        if (!pendingGrouped[ext.external_name]) {
+          pendingGrouped[ext.external_name] = { name: ext.external_name, total: 0, concepts: [], items: [] };
+        }
+        pendingGrouped[ext.external_name].total += ext.external_share;
+        pendingGrouped[ext.external_name].concepts.push(ext.concept);
+        pendingGrouped[ext.external_name].items.push(ext);
+      }
+
+      const pendingGroups = Object.values(pendingGrouped);
+
+      if (pendingGroups.length) {
         html += `<div class="section-label">Externos</div>`;
         html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">`;
-        html += pendingExternals.map(ext => `
+        html += pendingGroups.map((grp, idx) => `
           <div class="debt-item">
             <div style="font-size:24px;width:40px;text-align:center;">👤</div>
             <div class="debt-info">
-              <div class="debt-name">${escHtml(ext.external_name)}</div>
-              <div class="debt-days">${escHtml(ext.concept)}</div>
+              <div class="debt-name">${escHtml(grp.name)}</div>
+              <div class="debt-days">${grp.concepts.map(c => escHtml(c)).join(', ')}</div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-              <div class="pill-debt" style="background:var(--orange);color:#fff;">${formatAmount(ext.external_share)}</div>
-              <button class="btn btn-accent btn-sm confirm-external-btn"
-                data-expense-id="${ext.expense_id}"
-                data-name="${escHtml(ext.external_name)}"
-                data-amount="${ext.external_share}">
+              <div class="pill-debt" style="background:var(--orange);color:#fff;">${formatAmount(grp.total)}</div>
+              <button class="btn btn-accent btn-sm confirm-external-group-btn"
+                data-group-idx="${idx}">
                 Ya me pagó ✓
               </button>
             </div>
           </div>
         `).join('');
         html += `</div>`;
+
+        // Store grouped data for event handler
+        content._pendingGroups = pendingGroups;
       }
 
-      if (paidExternals.length) {
+      // Group paid externals by name
+      const paidGrouped = {};
+      for (const ext of paidExternals) {
+        if (!paidGrouped[ext.external_name]) {
+          paidGrouped[ext.external_name] = { name: ext.external_name, total: 0, concepts: [] };
+        }
+        paidGrouped[ext.external_name].total += ext.external_share;
+        paidGrouped[ext.external_name].concepts.push(ext.concept);
+      }
+
+      const paidGroups = Object.values(paidGrouped);
+
+      if (paidGroups.length) {
         html += `<div class="section-label" style="color:var(--text3);">Externos pagados</div>`;
         html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;background:transparent;">`;
-        html += paidExternals.map(ext => `
+        html += paidGroups.map(grp => `
           <div class="debt-item" style="background:transparent;opacity:0.5;">
             <div style="font-size:24px;width:40px;text-align:center;">👤</div>
             <div class="debt-info">
-              <div class="debt-name" style="text-decoration:line-through;color:var(--text3);">${escHtml(ext.external_name)}</div>
-              <div class="debt-days" style="color:var(--text3);">${escHtml(ext.concept)}</div>
+              <div class="debt-name" style="text-decoration:line-through;color:var(--text3);">${escHtml(grp.name)}</div>
+              <div class="debt-days" style="color:var(--text3);">${grp.concepts.map(c => escHtml(c)).join(', ')}</div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
-              <span style="text-decoration:line-through;color:var(--text3);font-size:14px;">${formatAmount(ext.external_share)}</span>
+              <span style="text-decoration:line-through;color:var(--text3);font-size:14px;">${formatAmount(grp.total)}</span>
               <span style="color:var(--mint);font-weight:700;font-size:15px;">✓</span>
             </div>
           </div>
@@ -240,22 +266,26 @@ Router.register('debts', async (screen) => {
       });
     });
 
-    // Confirm external payment buttons
-    content.querySelectorAll('.confirm-external-btn').forEach(btn => {
+    // Confirm external payment buttons (grouped)
+    content.querySelectorAll('.confirm-external-group-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const expenseId = btn.dataset.expenseId;
-        const name = btn.dataset.name;
-        const amount = btn.dataset.amount;
+        const groupIdx = parseInt(btn.dataset.groupIdx, 10);
+        const groups = content._pendingGroups;
+        if (!groups || !groups[groupIdx]) return;
 
+        const grp = groups[groupIdx];
         btn.disabled = true;
         btn.textContent = '...';
 
         try {
-          await api('POST', `/expenses/${expenseId}/external-payment`, {
-            external_name: name,
-            amount: parseFloat(amount)
-          });
-          showToast(`Pago de ${name} confirmado`, 'success');
+          // Confirm all items in this group
+          for (const ext of grp.items) {
+            await api('POST', `/expenses/${ext.expense_id}/external-payment`, {
+              external_name: ext.external_name,
+              amount: ext.external_share
+            });
+          }
+          showToast(`Pago de ${grp.name} confirmado`, 'success');
           setTimeout(() => load(), 300);
         } catch (e) {
           showToast(e.message, 'error');

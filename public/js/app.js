@@ -113,7 +113,8 @@ function formatDate(iso) {
 function formatDaysSince(isoDate) {
   const then = new Date(isoDate);
   const now = new Date();
-  return Math.floor((now - then) / 86400000);
+  const days = Math.floor((now - then) / 86400000);
+  return days < 0 ? 0 : days;
 }
 
 function getCategoryEmoji(cat) {
