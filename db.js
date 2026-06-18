@@ -151,6 +151,19 @@ const db = {
       )
     `);
 
+    // Migrate: create external_payments table for tracking external participant payments
+    _db.run(`
+      CREATE TABLE IF NOT EXISTS external_payments (
+        id TEXT PRIMARY KEY,
+        expense_id TEXT NOT NULL,
+        external_name TEXT NOT NULL,
+        amount REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE
+      )
+    `);
+
     saveDb();
     console.log('[db] ready');
   },

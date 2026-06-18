@@ -51,9 +51,8 @@ Router.register('debts', async (screen) => {
     if (!owes.length && !owed.length) {
       html += `
         <div class="empty-state">
-          <div style="opacity:.5;">${renderCatSprite({ color: AppState.userColor || 'orange', size: 120, animation: 'on_hind_legs' })}</div>
-          <div class="empty-state-title">¡Todo en orden!</div>
-          <div class="empty-state-sub">No tenés deudas pendientes. Tu gato está orgulloso.</div>
+          <img src="https://media.tenor.com/DCm4DNbMlJMAAAAd/emoji-mate.gif" alt="mate" style="width:150px;height:150px;object-fit:contain;" onerror="this.outerHTML='<iframe src=\\'https://tenor.com/embed/5995996843990285223\\' width=\\'150\\' height=\\'150\\' frameborder=\\'0\\'></iframe>'">
+          <div style="font-size:18px;color:var(--text2);margin-top:12px;text-align:center;">Todo al día 🧉</div>
         </div>
       `;
     }
@@ -116,19 +115,51 @@ Router.register('debts', async (screen) => {
     }
 
     if (externals && externals.length) {
-      html += `<div class="section-label">Externos</div>`;
-      html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">`;
-      html += externals.map(ext => `
-        <div class="debt-item">
-          <div style="font-size:24px;width:40px;text-align:center;">👤</div>
-          <div class="debt-info">
-            <div class="debt-name">${escHtml(ext.external_name)}</div>
-            <div class="debt-days">${escHtml(ext.concept)}</div>
+      const pendingExternals = externals.filter(e => !e.paid);
+      const paidExternals = externals.filter(e => e.paid);
+
+      if (pendingExternals.length) {
+        html += `<div class="section-label">Externos</div>`;
+        html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">`;
+        html += pendingExternals.map(ext => `
+          <div class="debt-item">
+            <div style="font-size:24px;width:40px;text-align:center;">👤</div>
+            <div class="debt-info">
+              <div class="debt-name">${escHtml(ext.external_name)}</div>
+              <div class="debt-days">${escHtml(ext.concept)}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <div class="pill-debt" style="background:var(--orange);color:#fff;">${formatAmount(ext.external_share)}</div>
+              <button class="btn btn-accent btn-sm confirm-external-btn"
+                data-expense-id="${ext.expense_id}"
+                data-name="${escHtml(ext.external_name)}"
+                data-amount="${ext.external_share}">
+                Ya me pagó ✓
+              </button>
+            </div>
           </div>
-          <div class="pill-debt" style="background:var(--orange);color:#fff;">${formatAmount(ext.external_share)}</div>
-        </div>
-      `).join('');
-      html += `</div>`;
+        `).join('');
+        html += `</div>`;
+      }
+
+      if (paidExternals.length) {
+        html += `<div class="section-label" style="color:var(--text3);">Externos pagados</div>`;
+        html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;background:transparent;">`;
+        html += paidExternals.map(ext => `
+          <div class="debt-item" style="background:transparent;opacity:0.5;">
+            <div style="font-size:24px;width:40px;text-align:center;">👤</div>
+            <div class="debt-info">
+              <div class="debt-name" style="text-decoration:line-through;color:var(--text3);">${escHtml(ext.external_name)}</div>
+              <div class="debt-days" style="color:var(--text3);">${escHtml(ext.concept)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="text-decoration:line-through;color:var(--text3);font-size:14px;">${formatAmount(ext.external_share)}</span>
+              <span style="color:var(--mint);font-weight:700;font-size:15px;">✓</span>
+            </div>
+          </div>
+        `).join('');
+        html += `</div>`;
+      }
     }
 
     if (history && history.length) {
@@ -205,6 +236,31 @@ Router.register('debts', async (screen) => {
           showToast(e.message, 'error');
           btn.disabled = false;
           btn.textContent = 'Ya pagué';
+        }
+      });
+    });
+
+    // Confirm external payment buttons
+    content.querySelectorAll('.confirm-external-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const expenseId = btn.dataset.expenseId;
+        const name = btn.dataset.name;
+        const amount = btn.dataset.amount;
+
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        try {
+          await api('POST', `/expenses/${expenseId}/external-payment`, {
+            external_name: name,
+            amount: parseFloat(amount)
+          });
+          showToast(`Pago de ${name} confirmado`, 'success');
+          setTimeout(() => load(), 300);
+        } catch (e) {
+          showToast(e.message, 'error');
+          btn.disabled = false;
+          btn.textContent = 'Ya me pagó ✓';
         }
       });
     });

@@ -208,6 +208,9 @@ router.get('/group/:groupId/with-externals', (req, res) => {
   const getExternalsStmt = db.prepare(`
     SELECT name FROM expense_externals WHERE expense_id = ?
   `);
+  const getExternalPaymentStmt = db.prepare(`
+    SELECT id FROM external_payments WHERE expense_id = ? AND external_name = ? AND status = 'confirmed'
+  `);
 
   const result = [];
   for (const e of expenses) {
@@ -218,17 +221,51 @@ router.get('/group/:groupId/with-externals', (req, res) => {
 
     // Return one item per external person
     for (let i = 0; i < e.external_count; i++) {
+      const extName = externalNames[i] || `Externo ${i + 1}`;
+      const paid = !!getExternalPaymentStmt.get(e.id, extName);
       result.push({
         expense_id: e.id,
         concept: e.concept,
         expense_date: e.expense_date,
-        external_name: externalNames[i] || `Externo ${i + 1}`,
-        external_share: externalShare
+        external_name: extName,
+        external_share: externalShare,
+        paid
       });
     }
   }
 
   res.json(result);
+});
+
+// POST /api/expenses/:expenseId/external-payment — confirm external payment
+router.post('/:expenseId/external-payment', (req, res) => {
+  const { external_name, amount } = req.body;
+  const { expenseId } = req.params;
+
+  if (!external_name || amount === undefined) {
+    return res.status(400).json({ error: 'external_name and amount required' });
+  }
+
+  const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(expenseId);
+  if (!expense) return res.status(404).json({ error: 'expense not found' });
+
+  // Check if already confirmed
+  const existing = db.prepare(`
+    SELECT id FROM external_payments WHERE expense_id = ? AND external_name = ?
+  `).get(expenseId, external_name);
+
+  if (existing) {
+    db.prepare(`UPDATE external_payments SET status = 'confirmed', amount = ? WHERE id = ?`)
+      .run(parseFloat(amount), existing.id);
+  } else {
+    const id = require('uuid').v4();
+    db.prepare(`
+      INSERT INTO external_payments (id, expense_id, external_name, amount, status)
+      VALUES (?, ?, ?, ?, 'confirmed')
+    `).run(id, expenseId, external_name, parseFloat(amount));
+  }
+
+  res.json({ ok: true });
 });
 
 router.recalculatePayments = recalculatePayments;
