@@ -15,7 +15,7 @@ Router.register('feed', async (screen) => {
             </button>
             <div style="position:relative;">
               <button class="btn btn-ghost btn-sm" id="btn-gear" style="width:auto;padding:8px 10px;font-size:15px;" title="Opciones">⚙</button>
-              <div id="gear-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--surface);border:1px solid var(--border2);border-radius:12px;overflow:hidden;min-width:164px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+              <div id="gear-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--surface);border:1px solid var(--border2);border-radius:12px;overflow:hidden;min-width:164px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.4);">
                 <button id="btn-profile-dd" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;font-size:13px;font-weight:600;color:var(--text);background:none;border:none;cursor:pointer;text-align:left;">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                     <circle cx="7" cy="4" r="2.6" stroke="currentColor" stroke-width="1.5"/>
